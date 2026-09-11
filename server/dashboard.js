@@ -33,6 +33,9 @@ export function createDashboard({
   let projects = [];
   let panels = [];
   let notifications = [];
+  // Guards against a second folder-picker process spawning while one is
+  // already open (each extra click otherwise stacks another hidden dialog).
+  let addingProject = false;
   // Panel each connected window reports as focused (clientId -> panelId).
   // A window that is hidden, unfocused, or closed has no entry.
   const focusByClient = new Map();
@@ -120,10 +123,16 @@ export function createDashboard({
     },
 
     async 'project:add'() {
-      const picked = await pickFolder();
-      if (!picked || projects.some((project) => samePath(project.path, picked))) return;
-      projects = [...projects, { path: picked, name: path.win32.basename(picked) || picked, pinned: false }];
-      commit();
+      if (addingProject) return;
+      addingProject = true;
+      try {
+        const picked = await pickFolder();
+        if (!picked || projects.some((project) => samePath(project.path, picked))) return;
+        projects = [...projects, { path: picked, name: path.win32.basename(picked) || picked, pinned: false }];
+        commit();
+      } finally {
+        addingProject = false;
+      }
     },
 
     'project:remove'({ path: projectPath }) {

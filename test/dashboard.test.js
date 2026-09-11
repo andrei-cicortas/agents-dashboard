@@ -36,7 +36,7 @@ function memoryStore(initial) {
   };
 }
 
-function setup({ initial = emptyState(), picked = null } = {}) {
+function setup({ initial = emptyState(), picked = null, pickFolder = async () => picked } = {}) {
   const store = memoryStore(initial);
   const manager = fakeAgentManager();
   const sent = [];
@@ -46,7 +46,7 @@ function setup({ initial = emptyState(), picked = null } = {}) {
     store,
     agentManager: manager,
     agents,
-    pickFolder: async () => picked,
+    pickFolder,
     broadcast: (message) => sent.push(message),
     requestStop: () => sent.push({ type: 'stop-requested' }),
     now: () => new Date('2026-09-11T10:00:00.000Z'),
@@ -94,6 +94,52 @@ test('project:add does nothing when the picker is cancelled', async () => {
   dashboard.start();
   await send({ type: 'project:add' });
   assert.deepEqual(store.saved.projects, []);
+});
+
+test('project:add ignores a repeated click while the picker is still open', async () => {
+  const calls = [];
+  let resolvePick;
+  const pickFolder = () => new Promise((resolve) => {
+    calls.push('call');
+    resolvePick = resolve;
+  });
+  const { dashboard, store, send } = setup({ pickFolder });
+  dashboard.start();
+  const first = send({ type: 'project:add' });
+  send({ type: 'project:add' });
+  assert.equal(calls.length, 1);
+  resolvePick(GAME);
+  await first;
+  assert.deepEqual(store.saved.projects, [{ path: GAME, name: 'my game', pinned: false }]);
+});
+
+test('project:add calls the picker again once it has resolved', async () => {
+  const calls = [];
+  let resolvePick;
+  const pickFolder = () => new Promise((resolve) => {
+    calls.push('call');
+    resolvePick = resolve;
+  });
+  const { dashboard, send } = setup({ pickFolder });
+  dashboard.start();
+  const first = send({ type: 'project:add' });
+  resolvePick(null);
+  await first;
+  send({ type: 'project:add' });
+  assert.equal(calls.length, 2);
+});
+
+test('project:add resets the in-progress flag when the picker rejects', async () => {
+  const calls = [];
+  const pickFolder = () => {
+    calls.push('call');
+    return Promise.reject(new Error('boom'));
+  };
+  const { dashboard, send } = setup({ pickFolder });
+  dashboard.start();
+  await assert.rejects(send({ type: 'project:add' }));
+  await assert.rejects(send({ type: 'project:add' }));
+  assert.equal(calls.length, 2);
 });
 
 test('project:pin toggles pinned and project:remove is blocked while a panel uses the folder', async () => {
