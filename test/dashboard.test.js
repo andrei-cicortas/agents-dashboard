@@ -159,6 +159,34 @@ test('a needs-input hook sets attention and adds an unread notification; typing 
   assert.equal(lastState().panels[0].attention, false);
 });
 
+test('a lone terminal focus-report does not clear attention, but is still forwarded to the agent', async () => {
+  const { dashboard, manager, lastState, send } = setup({ initial: withPanel() });
+  dashboard.start();
+  assert.equal(dashboard.handleHook({ panelId: 'p1', event: 'needs-input' }), true);
+  await send({ type: 'panel:input', panelId: 'p1', data: '\x1b[O' });
+  assert.equal(lastState().panels[0].attention, true);
+  assert.deepEqual(manager.calls.at(-1), ['write', 'p1', '\x1b[O']);
+});
+
+test('concatenated focus-report sequences do not clear attention either', async () => {
+  const { dashboard, manager, lastState, send } = setup({ initial: withPanel() });
+  dashboard.start();
+  assert.equal(dashboard.handleHook({ panelId: 'p1', event: 'needs-input' }), true);
+  await send({ type: 'panel:input', panelId: 'p1', data: '\x1b[I\x1b[O' });
+  assert.equal(lastState().panels[0].attention, true);
+  assert.deepEqual(manager.calls.at(-1), ['write', 'p1', '\x1b[I\x1b[O']);
+});
+
+test('a real keystroke after a focus-report still clears attention', async () => {
+  const { dashboard, lastState, send } = setup({ initial: withPanel() });
+  dashboard.start();
+  assert.equal(dashboard.handleHook({ panelId: 'p1', event: 'needs-input' }), true);
+  await send({ type: 'panel:input', panelId: 'p1', data: '\x1b[O' });
+  assert.equal(lastState().panels[0].attention, true);
+  await send({ type: 'panel:input', panelId: 'p1', data: 'y' });
+  assert.equal(lastState().panels[0].attention, false);
+});
+
 test('a hook for the focused panel is added already read', async () => {
   const { dashboard, lastState, send } = setup({ initial: withPanel() });
   dashboard.start();

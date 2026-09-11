@@ -8,6 +8,13 @@ import { addNotification, markRead, markAllRead, unreadCount, removeForPanel } f
 
 const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 
+// xterm.js reports terminal focus/blur as \x1b[I / \x1b[O when the pty has
+// asked for focus tracking (DECSET 1004). These arrive through the same
+// panel:input channel as real keystrokes, but a click elsewhere in the app
+// (not typing into the panel) must not clear the "needs your input" dot.
+const FOCUS_REPORT = /^(?:\x1b\[[IO])+$/;
+const isFocusReport = (data) => FOCUS_REPORT.test(data);
+
 function samePath(a, b) {
   return path.win32.normalize(a).toLowerCase() === path.win32.normalize(b).toLowerCase();
 }
@@ -166,7 +173,7 @@ export function createDashboard({
       const panel = findPanel(panelId);
       if (!panel || typeof data !== 'string') return;
       agentManager.write(panelId, data);
-      if (panel.attention) {
+      if (panel.attention && !isFocusReport(data)) {
         panel.attention = false;
         publish();
       }
