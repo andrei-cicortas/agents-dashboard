@@ -94,7 +94,13 @@ export function createAgentManager({
       if (mode === 'resume' && now() - entry.startedAt < resumeGraceMs) {
         const freshId = newSessionId();
         emitter.emit('session', { panelId, sessionId: freshId });
-        start({ ...options, mode: 'start', sessionId: freshId });
+        // This runs inside a pseudo-terminal callback: a throw here would end
+        // the server, so report it on the panel instead.
+        try {
+          start({ ...options, mode: 'start', sessionId: freshId });
+        } catch (err) {
+          setStatus(panelId, 'exited', err.message);
+        }
         return;
       }
       setStatus(panelId, 'exited', `Exited with code ${exitCode}`);

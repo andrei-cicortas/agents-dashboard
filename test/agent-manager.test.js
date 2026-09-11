@@ -119,6 +119,27 @@ test('falls back to a fresh session when a resume exits quickly', async () => {
   manager.stop('p4');
 });
 
+test('reports exited when the fresh start after a quick resume exit throws', () => {
+  let exitHandler;
+  let spawns = 0;
+  const manager = makeManager({
+    exists: () => true,
+    kill: () => {},
+    newSessionId: () => 'fresh-2',
+    spawn: () => {
+      spawns += 1;
+      if (spawns > 1) throw new Error('spawn failed');
+      return { ...fakeTerm(), onExit(handler) { exitHandler = handler; } };
+    },
+  });
+  const statuses = recordStatuses(manager);
+  manager.start({ panelId: 'p7', agentId: 'echo', cwd: workDir, sessionId: 'old', mode: 'resume' });
+  assert.doesNotThrow(() => exitHandler({ exitCode: 1 }));
+  assert.equal(spawns, 2);
+  assert.deepEqual(statuses.at(-1), { panelId: 'p7', status: 'exited', message: 'spawn failed' });
+  assert.equal(manager.isRunning('p7'), false);
+});
+
 test('stop kills a running agent without reporting exit', async () => {
   const manager = makeManager();
   const ready = waitForOutput(manager, 'p5', /READY/);

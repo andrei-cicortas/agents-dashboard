@@ -108,7 +108,7 @@ export async function startServer({
     agents,
     pickFolder,
     broadcast,
-    requestStop: () => { stop(); },
+    requestStop: () => { stop().catch((err) => console.error('Stop failed:', err)); },
   });
 
   function serveStatic(pathname, res) {
@@ -207,7 +207,12 @@ export async function startServer({
   function stop() {
     if (stopping) return stopping;
     stopping = (async () => {
-      dashboard.shutdown();
+      try {
+        dashboard.shutdown();
+      } catch (err) {
+        // Still tell the windows and close everything below.
+        console.error('Shutdown failed:', err);
+      }
       broadcast({ type: 'server:stopped' });
       // Close gracefully so "server:stopped" reaches every window, then force.
       for (const socket of sockets) socket.close(1001, 'Server stopped');
@@ -237,7 +242,7 @@ if (invokedDirectly) {
     agentsFile: process.env.DASHBOARD_AGENTS_FILE || undefined,
     onStop: () => process.exit(0),
   }).then((app) => {
-    process.on('SIGINT', () => { app.stop(); });
+    process.on('SIGINT', () => { app.stop().catch((err) => console.error('Stop failed:', err)); });
   }).catch((err) => {
     console.error(err);
     process.exit(1);

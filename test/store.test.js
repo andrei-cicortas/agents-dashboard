@@ -39,6 +39,67 @@ test('a corrupt file is renamed, not deleted, and empty state is returned', () =
   assert.equal(fs.readFileSync(path.join(dir, 'state.corrupt.json'), 'utf8'), '{ not json');
 });
 
+// Real fs, except renameSync fails with the given codes, one per call, then works.
+function flakyFs(codes) {
+  const failures = [...codes];
+  const fakeFs = {
+    renameCalls: 0,
+    readFileSync: fs.readFileSync,
+    mkdirSync: fs.mkdirSync,
+    writeFileSync: fs.writeFileSync,
+    renameSync(from, to) {
+      fakeFs.renameCalls += 1;
+      const code = failures.shift();
+      if (code) throw Object.assign(new Error(`${code}: rename failed`), { code });
+      return fs.renameSync(from, to);
+    },
+  };
+  return fakeFs;
+}
+
+const sampleState = { projects: [], panels: [], notifications: [{ id: 'n1' }] };
+
+test('save retries a busy rename and then succeeds', (t) => {
+  const errors = t.mock.method(console, 'error', () => {});
+  const fakeFs = flakyFs(['EBUSY', 'EPERM']);
+  const store = createStore(path.join(dir, 'state.json'), { fs: fakeFs });
+  assert.doesNotThrow(() => store.save(sampleState));
+  assert.equal(fakeFs.renameCalls, 3);
+  assert.deepEqual(store.load(), sampleState);
+  assert.equal(errors.mock.callCount(), 0);
+});
+
+test('save logs and returns when the rename keeps failing', (t) => {
+  const errors = t.mock.method(console, 'error', () => {});
+  const fakeFs = flakyFs(Array(10).fill('EACCES'));
+  const file = path.join(dir, 'state.json');
+  const store = createStore(file, { fs: fakeFs });
+  assert.doesNotThrow(() => store.save(sampleState));
+  assert.equal(fakeFs.renameCalls, 5);
+  assert.equal(errors.mock.callCount(), 1);
+  assert.equal(fs.existsSync(file), false);
+});
+
+test('save logs other errors once without retrying or throwing', (t) => {
+  const errors = t.mock.method(console, 'error', () => {});
+  const fakeFs = flakyFs(['EXDEV']);
+  const store = createStore(path.join(dir, 'state.json'), { fs: fakeFs });
+  assert.doesNotThrow(() => store.save(sampleState));
+  assert.equal(fakeFs.renameCalls, 1);
+  assert.equal(errors.mock.callCount(), 1);
+});
+
+test('save never throws when the temp file cannot be written', (t) => {
+  const errors = t.mock.method(console, 'error', () => {});
+  const fakeFs = {
+    ...flakyFs([]),
+    writeFileSync() { throw Object.assign(new Error('ENOSPC: no space'), { code: 'ENOSPC' }); },
+  };
+  const store = createStore(path.join(dir, 'state.json'), { fs: fakeFs });
+  assert.doesNotThrow(() => store.save(sampleState));
+  assert.equal(errors.mock.callCount(), 1);
+});
+
 test('valid JSON that is not an object counts as corrupt', () => {
   const file = path.join(dir, 'state.json');
   fs.writeFileSync(file, '42');
