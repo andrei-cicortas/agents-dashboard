@@ -99,6 +99,9 @@ test('claudeHooksSettings registers Stop and Notification hooks', () => {
     command: '"D:/node.exe" "C:/Claude/Agents Dasboard/server/hook-client.js" claude finished',
   });
   assert.equal(command('Notification').command, '"D:/node.exe" "C:/Claude/Agents Dasboard/server/hook-client.js" claude needs-input');
+  // Only real questions count as "needs your input", not the idle reminder.
+  assert.equal(settings.hooks.Notification[0].matcher, 'permission_prompt|elicitation_dialog');
+  assert.equal(Object.hasOwn(settings.hooks.Stop[0], 'matcher'), false);
 });
 
 test('codexNotifyValue rejects paths with single quotes', () => {

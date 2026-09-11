@@ -59,8 +59,15 @@ export function toForwardSlashes(p) {
 
 export function claudeHooksSettings({ nodePath, hookClientPath }) {
   const base = `"${toForwardSlashes(nodePath)}" "${toForwardSlashes(hookClientPath)}" claude`;
-  const hook = (event) => [{ hooks: [{ type: 'command', command: `${base} ${event}` }] }];
-  return { hooks: { Stop: hook('finished'), Notification: hook('needs-input') } };
+  const hooks = (event) => [{ type: 'command', command: `${base} ${event}` }];
+  return {
+    hooks: {
+      Stop: [{ hooks: hooks('finished') }],
+      // Notification matchers match notification_type. Without one, Claude's
+      // "idle_prompt" reminder would also turn the panel orange.
+      Notification: [{ matcher: 'permission_prompt|elicitation_dialog', hooks: hooks('needs-input') }],
+    },
+  };
 }
 
 export function codexNotifyValue({ nodePath, hookClientPath }) {
