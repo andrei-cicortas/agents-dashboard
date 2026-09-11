@@ -1,0 +1,18 @@
+[
+  {
+    "id": "claude",
+    "name": "Claude Code",
+    "command": "claude",
+    "startArgs": ["--session-id", "{sessionId}", "--settings", "{claudeHooksFile}"],
+    "resumeArgs": ["--resume", "{sessionId}", "--settings", "{claudeHooksFile}"],
+    "installHint": "Claude Code is not installed. See https://docs.claude.com/claude-code"
+  },
+  {
+    "id": "codex",
+    "name": "Codex",
+    "command": "codex",
+    "startArgs": ["-c", "notify={codexNotify}"],
+    "resumeArgs": ["resume", "--last", "-c", "notify={codexNotify}"],
+    "installHint": "Codex is not installed. Run: npm install -g @openai/codex, then: codex login"
+  }
+]
