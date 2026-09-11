@@ -143,9 +143,20 @@ export async function startServer({
     });
   }
 
+  // A path like "//[" makes new URL() throw; uncaught, that would end the
+  // process and every agent running in it.
+  const parsePathname = (url) => {
+    try {
+      return new URL(url, `http://127.0.0.1:${actualPort}`).pathname;
+    } catch {
+      return null;
+    }
+  };
+
   server.on('request', (req, res) => {
     if (!isAllowedHost(req.headers.host, actualPort)) return sendText(res, 403, 'Forbidden');
-    const { pathname } = new URL(req.url, `http://127.0.0.1:${actualPort}`);
+    const pathname = parsePathname(req.url);
+    if (pathname === null) return sendText(res, 400, 'Bad request');
     if (req.method === 'GET' && pathname === '/api/health') return sendJson(res, 200, { ok: true, app: 'agents-dashboard' });
     if (req.method === 'POST' && pathname === '/api/hook') return handleHookRequest(req, res);
     if (req.method !== 'GET') return sendText(res, 405, 'Method not allowed');
@@ -155,7 +166,12 @@ export async function startServer({
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
 
   server.on('upgrade', (req, socket, head) => {
-    const { pathname } = new URL(req.url, `http://127.0.0.1:${actualPort}`);
+    const pathname = parsePathname(req.url);
+    if (pathname === null) {
+      socket.write('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
+      socket.destroy();
+      return;
+    }
     const allowed = pathname === '/ws'
       && isAllowedHost(req.headers.host, actualPort)
       && isAllowedOrigin(req.headers.origin, actualPort);

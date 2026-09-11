@@ -2,6 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import http from 'node:http';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,6 +49,34 @@ function request(options, body) {
     });
     req.on('error', reject);
     req.end(body);
+  });
+}
+
+// Sends bytes exactly as written (fetch and http.request would normalize the
+// path) and resolves with the status line of the response.
+function rawRequest(text, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    let response = '';
+    const socket = net.connect(app.port, '127.0.0.1', () => socket.write(text));
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new Error('Timed out waiting for a response'));
+    }, timeoutMs);
+    const finish = () => {
+      clearTimeout(timer);
+      socket.destroy();
+      resolve(response.split('\r\n')[0]);
+    };
+    socket.setEncoding('utf8');
+    socket.on('data', (chunk) => {
+      response += chunk;
+      if (response.includes('\r\n\r\n')) finish();
+    });
+    socket.on('close', finish);
+    socket.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
   });
 }
 
@@ -101,6 +130,24 @@ test('serves shared files with a JavaScript content type', async () => {
 
 test('rejects requests with a foreign Host header', async () => {
   assert.equal(await request({ path: '/api/health', headers: { Host: 'evil.example.com' } }), 403);
+});
+
+test('a malformed request URL gets 400 and the server keeps running', async () => {
+  const host = `127.0.0.1:${app.port}`;
+  assert.match(await rawRequest(`GET //[ HTTP/1.1\r\nHost: ${host}\r\n\r\n`), /^HTTP\/1\.1 400 /);
+  assert.match(await rawRequest([
+    'GET //[ HTTP/1.1',
+    `Host: ${host}`,
+    `Origin: http://${host}`,
+    'Connection: Upgrade',
+    'Upgrade: websocket',
+    'Sec-WebSocket-Version: 13',
+    'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+    '',
+    '',
+  ].join('\r\n')), /^HTTP\/1\.1 400 /);
+  const response = await fetch(`${base}/api/health`);
+  assert.deepEqual(await response.json(), { ok: true, app: 'agents-dashboard' });
 });
 
 test('hook endpoint requires the token', async () => {
