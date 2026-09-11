@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agents Dashboard</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/vendor/xterm/css/xterm.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar" id="topbar"></header>
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <section class="code-view" id="code-view">
+        <div class="grid" id="grid"></div>
+        <div class="empty" id="empty" hidden>
+          <div class="empty-title">No agents yet</div>
+          <div class="empty-text">Add a workspace on the left, then start an agent on it.</div>
+        </div>
+      </section>
+      <section class="chat-view" id="chat-view" hidden>
+        <div class="empty-title">Chat is coming soon</div>
+        <div class="empty-text">A simple AI chat will live here.</div>
+      </section>
+    </main>
+  </div>
+  <div class="banner" id="banner" hidden>Reconnecting…</div>
+  <div class="stopped" id="stopped" hidden>
+    <div class="empty-title">Dashboard stopped</div>
+    <div class="empty-text">All agents were stopped. Open the Agents Dashboard shortcut to start again.</div>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
