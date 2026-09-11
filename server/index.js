@@ -94,6 +94,7 @@ export async function startServer({
   });
 
   const sockets = new Set();
+  let nextClientId = 0;
   const broadcast = (message) => {
     const text = JSON.stringify(message);
     for (const socket of sockets) {
@@ -181,8 +182,12 @@ export async function startServer({
       return;
     }
     wss.handleUpgrade(req, socket, head, (ws) => {
+      const clientId = ++nextClientId;
       sockets.add(ws);
-      ws.on('close', () => sockets.delete(ws));
+      ws.on('close', () => {
+        sockets.delete(ws);
+        dashboard.disconnect(clientId);
+      });
       ws.on('message', (raw) => {
         let message;
         try {
@@ -193,7 +198,7 @@ export async function startServer({
         const reply = (response) => {
           if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(response));
         };
-        dashboard.handleMessage(message, reply).catch((err) => console.error('Message failed:', err));
+        dashboard.handleMessage(message, reply, clientId).catch((err) => console.error('Message failed:', err));
       });
     });
   });

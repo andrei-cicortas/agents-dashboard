@@ -165,6 +165,37 @@ test('WebSocket rejects a foreign Origin', async () => {
   assert.notEqual(outcome, 'open');
 });
 
+async function openReadySocket() {
+  const client = openSocket(base);
+  await new Promise((resolve) => client.socket.on('open', resolve));
+  client.send({ type: 'hello' });
+  await client.next((m) => m.type === 'state');
+  return client;
+}
+
+function postHook(panelId, event) {
+  return request({
+    path: '/api/hook',
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Dashboard-Token': app.token },
+  }, JSON.stringify({ panelId, event }));
+}
+
+test('every open window receives the same state broadcast', async () => {
+  const first = await openReadySocket();
+  const second = await openReadySocket();
+  first.messages.length = 0;
+  second.messages.length = 0;
+  first.send({ type: 'notifications:read', all: true });
+  const [a, b] = await Promise.all([
+    first.next((m) => m.type === 'state'),
+    second.next((m) => m.type === 'state'),
+  ]);
+  assert.deepEqual(a, b);
+  first.socket.close();
+  second.socket.close();
+});
+
 test('full flow: add project, start agent, receive output, get a hook notification', async () => {
   const client = openSocket(base);
   await new Promise((resolve) => client.socket.on('open', resolve));
@@ -184,16 +215,34 @@ test('full flow: add project, start agent, receive output, get a hook notificati
     return /READY session=/.test(output);
   });
 
-  const hookStatus = await request({
-    path: '/api/hook',
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Dashboard-Token': app.token },
-  }, JSON.stringify({ panelId, event: 'needs-input' }));
-  assert.equal(hookStatus, 204);
+  assert.equal(await postHook(panelId, 'needs-input'), 204);
   const notified = await client.next((m) => m.type === 'state' && m.unread === 1);
   assert.equal(notified.panels[0].attention, true);
 
-  client.send({ type: 'panel:close', panelId });
-  await client.next((m) => m.type === 'state' && m.panels.length === 0);
+  // Focus belongs to the connection that reported it. The panel:replay reply
+  // to hello proves the server handled panel:focus before the hook arrives.
+  const watcher = await openReadySocket();
+  client.messages.length = 0;
+  client.send({ type: 'panel:focus', panelId });
+  client.send({ type: 'hello' });
+  await client.next((m) => m.type === 'panel:replay');
+  assert.equal(await postHook(panelId, 'finished'), 204);
+  const whileFocused = await watcher.next((m) => m.type === 'state' && m.notifications.length === 2);
+  assert.equal(whileFocused.notifications[0].read, true);
+
+  // Once that window is gone, new notifications stay unread. The server
+  // notices the close asynchronously, so retry a few times.
   client.socket.close();
+  await new Promise((resolve) => client.socket.on('close', resolve));
+  let latest = whileFocused;
+  for (let attempt = 0; attempt < 20 && latest.notifications[0].read; attempt += 1) {
+    const count = latest.notifications.length;
+    assert.equal(await postHook(panelId, 'finished'), 204);
+    latest = await watcher.next((m) => m.type === 'state' && m.notifications.length === count + 1);
+  }
+  assert.equal(latest.notifications[0].read, false);
+
+  watcher.send({ type: 'panel:close', panelId });
+  await watcher.next((m) => m.type === 'state' && m.panels.length === 0);
+  watcher.socket.close();
 });

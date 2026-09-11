@@ -42,6 +42,19 @@ function savePrefs() {
 
 const findPanel = (panelId) => model.state?.panels.find((panel) => panel.id === panelId);
 
+// The server marks a notification read only while some window reports that
+// panel as focused, so report null whenever this window is hidden or in the
+// background. undefined means nothing was sent on the current connection.
+let sentFocus;
+
+function syncFocus() {
+  const looking = document.visibilityState === 'visible' && document.hasFocus();
+  const panelId = looking ? model.focusedPanelId : null;
+  if (panelId === sentFocus) return;
+  sentFocus = panelId;
+  api.send('panel:focus', { panelId });
+}
+
 const actions = {
   setTab(tab) {
     model.tab = tab;
@@ -116,7 +129,7 @@ const actions = {
     if (model.maximizedPanelId !== panelId) model.maximizedPanelId = null;
     if (model.focusedPanelId !== panelId) {
       model.focusedPanelId = panelId;
-      api.send('panel:focus', { panelId });
+      syncFocus();
     }
     render();
     grid.reveal(panelId);
@@ -125,7 +138,7 @@ const actions = {
   toggleMaximize(panelId) {
     model.maximizedPanelId = model.maximizedPanelId === panelId ? null : panelId;
     model.focusedPanelId = panelId;
-    api.send('panel:focus', { panelId });
+    syncFocus();
     render();
   },
 
@@ -162,7 +175,10 @@ const api = connect({
   onMessage(message) {
     if (message.type === 'state') {
       model.state = message;
-      if (model.focusedPanelId && !findPanel(model.focusedPanelId)) model.focusedPanelId = null;
+      if (model.focusedPanelId && !findPanel(model.focusedPanelId)) {
+        model.focusedPanelId = null;
+        syncFocus();
+      }
       if (model.maximizedPanelId && !findPanel(model.maximizedPanelId)) model.maximizedPanelId = null;
       render();
     } else if (message.type === 'panel:data') {
@@ -176,5 +192,14 @@ const api = connect({
   },
   onConnectionChange(connected) {
     byId('banner').hidden = connected || !byId('stopped').hidden;
+    if (connected) {
+      // A new connection starts with no focus on the server; report it again.
+      sentFocus = undefined;
+      syncFocus();
+    }
   },
 });
+
+window.addEventListener('focus', syncFocus);
+window.addEventListener('blur', syncFocus);
+document.addEventListener('visibilitychange', syncFocus);

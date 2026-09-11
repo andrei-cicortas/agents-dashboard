@@ -54,7 +54,7 @@ function setup({ initial = emptyState(), picked = null } = {}) {
     newSessionId: () => `session${++sessions}`,
   });
   const lastState = () => sent.filter((m) => m.type === 'state').at(-1);
-  const send = (message) => dashboard.handleMessage(message, () => {});
+  const send = (message, clientId = 'window1') => dashboard.handleMessage(message, () => {}, clientId);
   return { dashboard, store, manager, sent, lastState, send };
 }
 
@@ -196,6 +196,38 @@ test('a hook for the focused panel is added already read', async () => {
   assert.equal(lastState().notifications[0].read, true);
 });
 
+test('a hook is unread once the client that focused the panel disconnects', async () => {
+  const { dashboard, lastState, send } = setup({ initial: withPanel() });
+  dashboard.start();
+  await send({ type: 'panel:focus', panelId: 'p1' }, 'window1');
+  dashboard.handleHook({ panelId: 'p1', event: 'finished' });
+  assert.equal(lastState().notifications[0].read, true);
+  dashboard.disconnect('window1');
+  dashboard.handleHook({ panelId: 'p1', event: 'finished' });
+  assert.equal(lastState().notifications[0].read, false);
+  assert.equal(lastState().unread, 1);
+});
+
+test('panel:focus with a null panelId clears the focus', async () => {
+  const { dashboard, lastState, send } = setup({ initial: withPanel() });
+  dashboard.start();
+  await send({ type: 'panel:focus', panelId: 'p1' });
+  await send({ type: 'panel:focus', panelId: null });
+  dashboard.handleHook({ panelId: 'p1', event: 'finished' });
+  assert.equal(lastState().notifications[0].read, false);
+});
+
+test('focus is tracked per client', async () => {
+  const { dashboard, lastState, send } = setup({ initial: withPanel() });
+  dashboard.start();
+  await send({ type: 'panel:focus', panelId: 'p1' }, 'window1');
+  await send({ type: 'panel:focus', panelId: null }, 'window2');
+  dashboard.handleHook({ panelId: 'p1', event: 'finished' });
+  assert.equal(lastState().notifications[0].read, true);
+  dashboard.disconnect('window1');
+  dashboard.handleHook({ panelId: 'p1', event: 'finished' });
+  assert.equal(lastState().notifications[0].read, false);
+});
 test('handleHook rejects unknown panels and events', () => {
   const { dashboard } = setup({ initial: withPanel() });
   dashboard.start();

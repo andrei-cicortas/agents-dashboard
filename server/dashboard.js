@@ -33,7 +33,9 @@ export function createDashboard({
   let projects = [];
   let panels = [];
   let notifications = [];
-  let focusedPanelId = null;
+  // Panel each connected window reports as focused (clientId -> panelId).
+  // A window that is hidden, unfocused, or closed has no entry.
+  const focusByClient = new Map();
 
   const agentName = (agentId) => agents.find((agent) => agent.id === agentId)?.name ?? agentId;
   const findPanel = (panelId) => panels.find((panel) => panel.id === panelId);
@@ -157,7 +159,9 @@ export function createDashboard({
       agentManager.forget(panelId);
       panels = panels.filter((panel) => panel.id !== panelId);
       notifications = removeForPanel(notifications, panelId);
-      if (focusedPanelId === panelId) focusedPanelId = null;
+      for (const [clientId, focused] of focusByClient) {
+        if (focused === panelId) focusByClient.delete(clientId);
+      }
       commit();
     },
 
@@ -184,8 +188,9 @@ export function createDashboard({
       agentManager.resize(panelId, cols, rows);
     },
 
-    'panel:focus'({ panelId }) {
-      focusedPanelId = findPanel(panelId) ? panelId : null;
+    'panel:focus'({ panelId }, _reply, clientId) {
+      if (findPanel(panelId)) focusByClient.set(clientId, panelId);
+      else focusByClient.delete(clientId);
     },
 
     'notifications:read'({ id, all }) {
@@ -198,9 +203,14 @@ export function createDashboard({
     },
   };
 
-  async function handleMessage(message, reply) {
+  // clientId identifies the window (WebSocket connection) the message came from.
+  async function handleMessage(message, reply, clientId) {
     const handler = message && Object.hasOwn(handlers, message.type) ? handlers[message.type] : null;
-    if (handler) await handler(message, reply);
+    if (handler) await handler(message, reply, clientId);
+  }
+
+  function disconnect(clientId) {
+    focusByClient.delete(clientId);
   }
 
   function handleHook({ panelId, event }) {
@@ -212,7 +222,8 @@ export function createDashboard({
       panelId,
       event,
       at: now().toISOString(),
-      read: panelId === focusedPanelId,
+      // Read only if someone is looking at that panel right now.
+      read: [...focusByClient.values()].includes(panelId),
     });
     commit();
     return true;
@@ -223,5 +234,5 @@ export function createDashboard({
     save();
   }
 
-  return { start, handleMessage, handleHook, shutdown, state };
+  return { start, handleMessage, handleHook, disconnect, shutdown, state };
 }
