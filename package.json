@@ -1,0 +1,20 @@
+{
+  "name": "agents-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Desktop dashboard for running several AI coding agents side by side",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@lydell/node-pty": "1.2.0-beta.15",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "ws": "8.21.3"
+  }
+}
