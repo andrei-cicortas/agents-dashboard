@@ -86,3 +86,7 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
 - [ ] Close the window, wait, open the shortcut again → the panels are still there with their output.
 - [ ] Power button → confirm → "Dashboard stopped".
 - [ ] Open the shortcut again → the panels come back and Claude continues its conversation.
+- [ ] Leave Claude idle for more than 60 seconds after it finishes → the panel stays green (no "needs your input").
+- [ ] Click into a Claude panel, close the window, let Claude finish, reopen → the bell badge shows 1.
+- [ ] Reload the window with Claude open → no stray characters (like `[?1;2c`) appear in Claude's prompt box.
+- [ ] Codex (after installing it): the panel starts, `codex resume --last` works after a restart, and the bell rings when Codex finishes — not yet verified on this PC.

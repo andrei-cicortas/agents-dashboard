@@ -156,6 +156,10 @@ export function createPanel(initialPanel, actions) {
     replay(data) {
       terminal.reset();
       if (data) terminal.write(data);
+      // Replay follows every (re)connect; a restarted server starts agents at
+      // its default size, so send the size again even if it did not change.
+      lastSize = '';
+      fit();
     },
     fit,
     focusTerminal: () => terminal.focus(),
