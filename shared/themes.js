@@ -1,12 +1,32 @@
-// The colour themes, shared by the stylesheet and the terminals.
+// The two colour themes, shared by the stylesheet and the terminals.
 //
-// A theme only carries the colours that actually differ between themes. The
-// translucent veils and rings the surfaces are built from stay the same white
-// alphas throughout, because every theme here is dark; so does the meaning of
-// the status dots, where a recognisable green and orange matter more than a
-// tidy palette.
+// Dark and Light, and nothing in between: one for working at night and one for
+// a bright room, which is the only choice anybody actually makes.
+//
+// Every surface in the app is built from a translucent veil over the
+// background and a 1px inset ring, rather than from solid borders. Those veils
+// are white on dark and black on light, so they are part of a theme rather
+// than fixed — which is what a real light theme needs and a shelf of dark ones
+// never did.
 
-export const TOKEN_KEYS = ['bg', 'surface', 'surface-raised', 'popover', 'text', 'muted', 'dim', 'accent'];
+// Solid colours. The status colours are here too: a green that reads on black
+// is not the green that reads on white.
+export const COLOUR_KEYS = [
+  'bg', 'surface', 'surface-raised', 'popover',
+  'text', 'muted', 'dim',
+  'accent', 'on-accent',
+  'red', 'green', 'yellow', 'orange', 'grey',
+];
+
+// The translucent layers: veils, rings, shadows, and the things drawn over
+// another surface rather than beside it.
+export const LAYER_KEYS = [
+  'veil', 'veil-hover', 'veil-active',
+  'ring', 'ring-strong',
+  'overlay', 'shadow', 'scrollbar', 'scrollbar-dim', 'glow', 'selection',
+];
+
+export const TOKEN_KEYS = [...COLOUR_KEYS, ...LAYER_KEYS];
 
 export const ANSI_KEYS = [
   'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
@@ -18,8 +38,8 @@ const ansi = (values) => Object.fromEntries(ANSI_KEYS.map((key, index) => [key, 
 
 export const THEMES = [
   {
-    id: 'midnight',
-    name: 'Midnight',
+    id: 'dark',
+    name: 'Dark',
     tokens: {
       bg: '#0a0a0a',
       surface: '#141414',
@@ -29,6 +49,24 @@ export const THEMES = [
       muted: '#a1a1a1',
       dim: '#858585',
       accent: '#5c8fff',
+      'on-accent': '#0a0a0a',
+      red: '#ef4444',
+      green: '#22c55e',
+      yellow: '#eab308',
+      orange: '#f97316',
+      grey: '#6b7280',
+
+      veil: 'rgba(255, 255, 255, 0.035)',
+      'veil-hover': 'rgba(255, 255, 255, 0.06)',
+      'veil-active': 'rgba(255, 255, 255, 0.1)',
+      ring: 'rgba(255, 255, 255, 0.1)',
+      'ring-strong': 'rgba(255, 255, 255, 0.16)',
+      overlay: 'rgba(20, 20, 20, 0.94)',
+      shadow: 'rgba(0, 0, 0, 0.55)',
+      scrollbar: 'rgba(255, 255, 255, 0.14)',
+      'scrollbar-dim': 'rgba(255, 255, 255, 0.1)',
+      glow: 'rgba(249, 115, 22, 0.2)',
+      selection: 'rgba(255, 255, 255, 0.18)',
     },
     ansi: ansi([
       '#1f1f1f', '#f87171', '#4ade80', '#facc15', '#60a5fa', '#c084fc', '#22d3ee', '#d4d4d8',
@@ -36,172 +74,54 @@ export const THEMES = [
     ]),
   },
   {
-    id: 'void',
-    name: 'Void',
+    id: 'light',
+    name: 'Light',
     tokens: {
-      bg: '#060608',
-      surface: '#0f0f14',
-      'surface-raised': '#16161d',
-      popover: '#14141a',
-      text: '#f4f4f7',
-      muted: '#9d9daa',
-      dim: '#7c7c8a',
-      accent: '#7c6cff',
+      // The page is the quieter grey and the panels are white, so a panel
+      // reads as something laid on the window rather than a hole in it —
+      // the same relationship the dark theme has, turned over.
+      bg: '#f1f1f3',
+      surface: '#ffffff',
+      'surface-raised': '#fbfbfc',
+      popover: '#ffffff',
+      text: '#18181b',
+      muted: '#52525b',
+      dim: '#71717a',
+      accent: '#2563eb',
+      'on-accent': '#ffffff',
+      red: '#dc2626',
+      green: '#15803d',
+      yellow: '#a16207',
+      orange: '#c2410c',
+      grey: '#71717a',
+
+      veil: 'rgba(0, 0, 0, 0.028)',
+      'veil-hover': 'rgba(0, 0, 0, 0.055)',
+      'veil-active': 'rgba(0, 0, 0, 0.085)',
+      ring: 'rgba(0, 0, 0, 0.12)',
+      'ring-strong': 'rgba(0, 0, 0, 0.26)',
+      overlay: 'rgba(255, 255, 255, 0.94)',
+      shadow: 'rgba(0, 0, 0, 0.16)',
+      scrollbar: 'rgba(0, 0, 0, 0.2)',
+      'scrollbar-dim': 'rgba(0, 0, 0, 0.14)',
+      glow: 'rgba(194, 65, 12, 0.16)',
+      selection: 'rgba(37, 99, 235, 0.18)',
     },
+    // A terminal palette that stays readable on white. The usual bright
+    // variants would be invisible there, so "bright" means bolder here.
     ansi: ansi([
-      '#1a1a22', '#ff6b81', '#5eead4', '#fcd34d', '#818cf8', '#c4b5fd', '#67e8f9', '#d4d4dc',
-      '#4b4b58', '#ff9aa8', '#99f6e4', '#fde68a', '#a5b4fc', '#ddd6fe', '#a5f3fc', '#f4f4f7',
-    ]),
-  },
-  {
-    id: 'tokyo-night',
-    name: 'Tokyo Night',
-    tokens: {
-      bg: '#16161e',
-      surface: '#1a1b26',
-      'surface-raised': '#24283b',
-      popover: '#1f2335',
-      text: '#c0caf5',
-      muted: '#9aa5ce',
-      dim: '#787c99',
-      accent: '#7aa2f7',
-    },
-    ansi: ansi([
-      '#15161e', '#f7768e', '#9ece6a', '#e0af68', '#7aa2f7', '#bb9af7', '#7dcfff', '#a9b1d6',
-      '#414868', '#ff7a93', '#b9f27c', '#ff9e64', '#7da6ff', '#c0a1f7', '#0db9d7', '#c0caf5',
-    ]),
-  },
-  {
-    id: 'dracula',
-    name: 'Dracula',
-    tokens: {
-      bg: '#1a1b23',
-      surface: '#282a36',
-      'surface-raised': '#343746',
-      popover: '#2f313d',
-      text: '#f8f8f2',
-      muted: '#a8abbd',
-      dim: '#8a8da3',
-      accent: '#bd93f9',
-    },
-    ansi: ansi([
-      '#21222c', '#ff5555', '#50fa7b', '#f1fa8c', '#bd93f9', '#ff79c6', '#8be9fd', '#f8f8f2',
-      '#6272a4', '#ff6e6e', '#69ff94', '#ffffa5', '#d6acff', '#ff92df', '#a4ffff', '#ffffff',
-    ]),
-  },
-  {
-    id: 'nord',
-    name: 'Nord',
-    tokens: {
-      bg: '#242933',
-      surface: '#2e3440',
-      'surface-raised': '#3b4252',
-      popover: '#353b4a',
-      text: '#eceff4',
-      muted: '#b4bbc8',
-      dim: '#93a1b1',
-      accent: '#88c0d0',
-    },
-    ansi: ansi([
-      '#3b4252', '#bf616a', '#a3be8c', '#ebcb8b', '#81a1c1', '#b48ead', '#88c0d0', '#e5e9f0',
-      '#4c566a', '#d08770', '#b9d3a0', '#f0d8a8', '#93b5d4', '#c7a2c0', '#9fd6e3', '#eceff4',
-    ]),
-  },
-  {
-    id: 'catppuccin',
-    name: 'Catppuccin',
-    tokens: {
-      bg: '#11111b',
-      surface: '#1e1e2e',
-      'surface-raised': '#313244',
-      popover: '#181825',
-      text: '#cdd6f4',
-      muted: '#a6adc8',
-      dim: '#7f849c',
-      accent: '#89b4fa',
-    },
-    ansi: ansi([
-      '#45475a', '#f38ba8', '#a6e3a1', '#f9e2af', '#89b4fa', '#cba6f7', '#94e2d5', '#bac2de',
-      '#585b70', '#f5a2b8', '#b8e9b4', '#fae8c4', '#a2c4fb', '#d7bcf9', '#a9e8de', '#cdd6f4',
-    ]),
-  },
-  {
-    id: 'gruvbox',
-    name: 'Gruvbox',
-    tokens: {
-      bg: '#1d2021',
-      surface: '#282828',
-      'surface-raised': '#3c3836',
-      popover: '#32302f',
-      text: '#ebdbb2',
-      muted: '#bdae93',
-      dim: '#a89984',
-      accent: '#fabd2f',
-    },
-    ansi: ansi([
-      '#3c3836', '#fb4934', '#b8bb26', '#fabd2f', '#83a598', '#d3869b', '#8ec07c', '#ebdbb2',
-      '#665c54', '#fe8019', '#c9d05a', '#fbd85e', '#a3bdb4', '#e0a5b5', '#a9d0a0', '#fbf1c7',
-    ]),
-  },
-  {
-    id: 'one-dark',
-    name: 'One Dark',
-    tokens: {
-      bg: '#21252b',
-      surface: '#282c34',
-      'surface-raised': '#333842',
-      popover: '#2c313a',
-      text: '#dcdfe4',
-      muted: '#9da5b4',
-      dim: '#7f848e',
-      accent: '#61afef',
-    },
-    ansi: ansi([
-      '#3f4451', '#e06c75', '#98c379', '#e5c07b', '#61afef', '#c678dd', '#56b6c2', '#abb2bf',
-      '#4f5666', '#ec858d', '#b3d69a', '#efd3a2', '#8ac4f3', '#d79ae7', '#7fcbd4', '#dcdfe4',
-    ]),
-  },
-  {
-    id: 'solarized',
-    name: 'Solarized',
-    tokens: {
-      bg: '#002b36',
-      surface: '#073642',
-      'surface-raised': '#0d4a58',
-      popover: '#0a4250',
-      text: '#eee8d5',
-      muted: '#93a1a1',
-      dim: '#839496',
-      accent: '#268bd2',
-    },
-    ansi: ansi([
-      '#073642', '#dc322f', '#859900', '#b58900', '#268bd2', '#d33682', '#2aa198', '#eee8d5',
-      '#586e75', '#cb4b16', '#9fb300', '#d1a000', '#4ba3e0', '#e0549b', '#3fbdb2', '#fdf6e3',
-    ]),
-  },
-  {
-    id: 'synthwave',
-    name: 'Synthwave',
-    tokens: {
-      bg: '#1a1526',
-      surface: '#241b2f',
-      'surface-raised': '#34264a',
-      popover: '#2b2040',
-      text: '#f8f8f2',
-      muted: '#b8a9d9',
-      dim: '#9187b0',
-      accent: '#ff7edb',
-    },
-    ansi: ansi([
-      '#2a2139', '#fe4450', '#72f1b8', '#fede5d', '#03edf9', '#ff7edb', '#67e8f9', '#f8f8f2',
-      '#495495', '#ff6d7e', '#9bf7cd', '#ffeb8a', '#6ff4fb', '#ffa3e6', '#a5f3fc', '#ffffff',
+      '#24292f', '#cf222e', '#116329', '#7d4e00', '#0550ae', '#8250df', '#1b7c83', '#6e7781',
+      '#57606a', '#a40e26', '#1a7f37', '#633c01', '#0969da', '#6639ba', '#12616c', '#3f4750',
     ]),
   },
 ];
 
-export const DEFAULT_THEME_ID = 'midnight';
+export const DEFAULT_THEME_ID = 'dark';
 
 export const themeById = (id) => THEMES.find((theme) => theme.id === id) ?? THEMES.find((theme) => theme.id === DEFAULT_THEME_ID);
+
+// The other one, for a switch that only ever has somewhere else to go.
+export const otherTheme = (theme) => THEMES.find((one) => one.id !== theme.id) ?? theme;
 
 export const cssVariables = (theme) => Object.fromEntries(TOKEN_KEYS.map((key) => [`--${key}`, theme.tokens[key]]));
 
@@ -211,7 +131,20 @@ export function terminalTheme(theme) {
     foreground: theme.tokens.text,
     cursor: theme.tokens.text,
     cursorAccent: theme.tokens.surface,
-    selectionBackground: 'rgba(255, 255, 255, 0.18)',
+    selectionBackground: theme.tokens.selection,
     ...theme.ansi,
+  };
+}
+
+// How a found word is painted over a terminal's own colours. The one you are
+// on has to stand out from the rest without hiding the text underneath, which
+// means different colours on a white terminal than on a black one.
+export function findDecorations(theme) {
+  const light = theme.id === 'light';
+  return {
+    matchBackground: light ? '#d7dce3' : '#4b5563',
+    matchOverviewRuler: light ? '#8c959f' : '#9ca3af',
+    activeMatchBackground: light ? '#ffd666' : '#eab308',
+    activeMatchColorOverviewRuler: light ? '#b8860b' : '#eab308',
   };
 }

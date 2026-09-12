@@ -8,18 +8,9 @@ import { icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { panelLabel } from '/shared/labels.js';
 import { dotClass } from '/shared/status.js';
-import { terminalTheme } from '/shared/themes.js';
+import { findDecorations, terminalTheme } from '/shared/themes.js';
 import { agentColour, agentInitial } from './agent-mark.js';
 import { matchLabel } from '/shared/find.js';
-
-// A found word is painted over the terminal's own colours, so it has to read
-// on every theme rather than borrow one.
-const FIND_DECORATIONS = {
-  matchBackground: '#4b5563',
-  matchOverviewRuler: '#9ca3af',
-  activeMatchBackground: '#eab308',
-  activeMatchColorOverviewRuler: '#eab308',
-};
 
 export function createPanel(initialPanel, actions, theme) {
   let panel = initialPanel;
@@ -113,7 +104,9 @@ export function createPanel(initialPanel, actions, theme) {
     findCount.textContent = matchLabel({ term: findInput.value, ...results });
   });
 
-  const findOptions = { decorations: FIND_DECORATIONS };
+  // A found word is painted over the terminal's own colours, so which colours
+  // read depend on which theme the terminal is wearing.
+  let findOptions = { decorations: findDecorations(theme) };
 
   function search(direction, { fromCursor = true } = {}) {
     const term = findInput.value;
@@ -235,6 +228,8 @@ ${panel.cwd}`;
     fit,
     setTheme(next) {
       terminal.options.theme = terminalTheme(next);
+      findOptions = { decorations: findDecorations(next) };
+      if (!findBar.hidden && findInput.value) search('forward', { fromCursor: false });
     },
     focusTerminal: () => terminal.focus(),
     openFind,

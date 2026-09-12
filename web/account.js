@@ -5,7 +5,7 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { isActive } from '/shared/status.js';
-import { THEMES } from '/shared/themes.js';
+import { otherTheme } from '/shared/themes.js';
 
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
@@ -14,14 +14,9 @@ export function createAccount(root, actions) {
   const name = h('span', { class: 'account-name' });
   const meta = h('span', { class: 'account-meta' });
 
-  const themeButton = h('button', {
-    class: 'icon-button',
-    title: 'Colour theme',
-    onClick: () => openMenu(themeButton, THEMES.map((theme) => ({
-      label: theme.name,
-      onSelect: () => actions.setTheme(theme.id),
-    }))),
-  }, icon('moon', { size: 15 }));
+  // Two themes means a switch, not a list: one click and you are in the other
+  // one, and the button shows where that is.
+  const themeButton = h('button', { class: 'icon-button' });
 
   const settingsButton = h('button', {
     class: 'icon-button',
@@ -39,6 +34,11 @@ export function createAccount(root, actions) {
 
   return {
     render(model) {
+      const next = otherTheme(model.theme);
+      themeButton.title = `Switch to ${next.name}`;
+      themeButton.onclick = () => actions.setTheme(next.id);
+      themeButton.replaceChildren(icon(next.id === 'light' ? 'sun' : 'moon', { size: 15 }));
+
       const { state } = model;
       if (!state) return;
       const who = state.user?.name || 'Local';

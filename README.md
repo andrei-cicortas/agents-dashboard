@@ -164,16 +164,20 @@ see the size of what you just asked for. Agent threads say the same.
 Chats are saved with the rest of the state, so they are still there after the
 window is closed, and each one carries on where it left off.
 
-## Colour themes
+## Dark and Light
 
-The moon button in the sidebar's account card switches between ten dark themes
-— Midnight,
-Void, Tokyo Night, Dracula, Nord, Catppuccin, Gruvbox, One Dark, Solarized and
-Synthwave. The terminals change with the rest of the app. The choice is kept in
-the browser, so it belongs to the window rather than to the agents.
+The button in the sidebar's account card switches between the two. It shows
+where a click would take you: a sun on the dark theme, a moon on the light one.
+The terminals change with the rest of the app, palette included — the usual
+bright colours are invisible on white, so the light theme has its own sixteen.
+The choice is kept in the browser, so it belongs to the window rather than to
+the agents.
 
-To add one, put it in `shared/themes.js`: eight colours for the app and the
-sixteen a terminal needs. The tests check that none of them is missing.
+Both themes live in `shared/themes.js`, and they carry the whole palette: the
+solid colours, and the translucent veils, rings and shadows every surface is
+built from — those are white on dark and black on light, which is the part a
+shelf of dark themes never needed. Nothing in `styles.css` names a colour of
+its own; a test fails if anything starts to.
 
 Closing the window does **not** stop the agents. Open the shortcut again to see
 them. **Settings** (the gear in the account card) stops all agents and the
@@ -270,8 +274,8 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
       comes back.
 - [ ] Open the dashboard in two windows → splitting in one shows up in the
       other, and neither undoes the other.
-- [ ] Pick a theme → the app and the running terminals both change, and the
-      choice is still there after a reload.
+- [ ] Switch to Light → the whole window turns, terminals included, and no
+      corner of it stays dark. Switch back, reload → the choice is still there.
 - [ ] Start a dev server, add a web pane, point it at it → the page shows, and
       Reload fetches it again.
 - [ ] Close the window and open it again → the web pane comes back on the same
