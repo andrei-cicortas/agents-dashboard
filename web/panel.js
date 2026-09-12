@@ -24,6 +24,9 @@ export function createPanel(initialPanel, actions, theme) {
   const dot = h('span', { class: 'dot' });
   const markInitial = h('span', {});
   const mark = h('span', { class: 'panel-mark' }, markInitial);
+  // Both agents start with C, and their marks differ only in colour, so the
+  // header says which one in words.
+  const title = h('span', { class: 'panel-title' });
   const moreButton = h('button', {
     class: 'icon-button',
     title: 'More',
@@ -50,6 +53,7 @@ export function createPanel(initialPanel, actions, theme) {
     h('div', { class: 'panel-header', onDblclick: () => actions.toggleMaximize(panel.id) },
       dot,
       mark,
+      title,
       h('div', { class: 'panel-actions' }, moreButton, maximizeButton, plusButton, closeButton)),
     h('div', { class: 'panel-body' }, host, overlay));
   element.addEventListener('pointerdown', () => actions.focusPanel(panel.id));
@@ -117,10 +121,12 @@ export function createPanel(initialPanel, actions, theme) {
     dot.className = `dot ${dotClass(panel)}`;
     mark.style.background = agentColour(panel.agentId);
     markInitial.textContent = agentInitial(panel);
-    // The canvas shows one workspace at a time, so every panel would repeat the
-    // same folder; the header stays bare and the words live in the tooltip.
+    // The folder is the same for every panel here and is named in the top bar,
+    // so the header spends its words on which agent this is.
+    title.textContent = panel.agentName ?? '';
     mark.title = `${panelLabel(panel)}
 ${panel.cwd}`;
+    title.title = mark.title;
     element.classList.toggle('focused', focused);
     element.classList.toggle('attention', panel.attention);
     if (maximized !== shownMaximized) {
