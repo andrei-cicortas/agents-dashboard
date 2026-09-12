@@ -549,6 +549,9 @@ const api = connect({
       }
       if (model.maximizedPanelId && !findPanel(model.maximizedPanelId)) model.maximizedPanelId = null;
       render();
+      // render() is where a thread or chat first becomes the one on screen, so
+      // the server only learns what this window is watching afterwards.
+      syncFocus();
     } else if (message.type === 'panel:data') {
       canvas.write(message.panelId, message.data);
     } else if (message.type === 'panel:replay') {
