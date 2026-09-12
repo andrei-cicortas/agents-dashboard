@@ -33,8 +33,11 @@ This puts an **Agents Dashboard** shortcut on your desktop.
 4. Type your task into the panel's terminal.
 5. The bell shows when an agent finishes or needs your input.
 
-The canvas shows one workspace at a time: click a folder to open it, or the
-chevron to fold its list of agents. Agents in other folders keep running.
+The sidebar lists pinned folders first, then every other folder under
+**Folders**. The canvas shows one workspace at a time: click a folder to open
+it, or the chevron to fold its list of agents. Agents in other folders keep
+running. The card at the bottom shows who is signed in to the PC, how much is
+running, and the two settings that belong to the window.
 
 ## Arranging the panels
 
@@ -67,7 +70,8 @@ dev servers normally do not.
 
 ## Colour themes
 
-The palette button in the top bar switches between ten dark themes — Midnight,
+The moon button in the sidebar's account card switches between ten dark themes
+— Midnight,
 Void, Tokyo Night, Dracula, Nord, Catppuccin, Gruvbox, One Dark, Solarized and
 Synthwave. The terminals change with the rest of the app. The choice is kept in
 the browser, so it belongs to the window rather than to the agents.
@@ -76,7 +80,8 @@ To add one, put it in `shared/themes.js`: eight colours for the app and the
 sixteen a terminal needs. The tests check that none of them is missing.
 
 Closing the window does **not** stop the agents. Open the shortcut again to see
-them. The power button (top right) stops all agents and the server.
+them. **Settings** (the gear in the account card) stops all agents and the
+server.
 
 ## Adding another agent type
 
@@ -87,7 +92,7 @@ Add an entry to `config/agents.json`:
 - placeholders: `{sessionId}`, `{claudeHooksFile}`, `{codexNotify}`
 - `installHint`: shown when the command is not installed
 
-Restart the dashboard (power button, then the shortcut).
+Restart the dashboard (Settings → stop, then the shortcut).
 
 ## Where things are stored
 
@@ -146,7 +151,7 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
       address.
 - [ ] Start Codex (or see the install hint if it is not installed).
 - [ ] Close the window, wait, open the shortcut again → the panels are still there with their output.
-- [ ] Power button → confirm → "Dashboard stopped".
+- [ ] Settings → Stop all agents and close → confirm → "Dashboard stopped".
 - [ ] Open the shortcut again → the panels come back and Claude continues its conversation.
 - [ ] Leave Claude idle for more than 60 seconds after it finishes → the panel stays green (no "needs your input").
 - [ ] Click into a Claude panel, close the window, let Claude finish, reopen → the bell badge shows 1.

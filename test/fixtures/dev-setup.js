@@ -7,11 +7,17 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const devDir = path.join(root, 'test', '.tmp', 'dev');
-const workspace = path.join(devDir, 'workspace one');
 const fixture = (name) => path.join(root, 'test', 'fixtures', name);
 
+// Enough folders, pinned and not, to see how the sidebar behaves when it is
+// full rather than nearly empty.
+const PINNED = ['workspace one', 'orbit-api', 'orbit-web'];
+const PLAIN = ['design-system', 'billing', 'docs-site', 'infra', 'scratch'];
+const folder = (name) => path.join(devDir, name);
+const workspace = folder(PINNED[0]);
+
 fs.rmSync(devDir, { recursive: true, force: true });
-fs.mkdirSync(workspace, { recursive: true });
+for (const name of [...PINNED, ...PLAIN]) fs.mkdirSync(folder(name), { recursive: true });
 
 fs.writeFileSync(path.join(devDir, 'agents.json'), JSON.stringify([
   {
@@ -33,7 +39,10 @@ fs.writeFileSync(path.join(devDir, 'agents.json'), JSON.stringify([
 ], null, 2));
 
 fs.writeFileSync(path.join(devDir, 'state.json'), JSON.stringify({
-  projects: [{ path: workspace, name: 'workspace one', pinned: true }],
+  projects: [
+    ...PINNED.map((name) => ({ path: folder(name), name, pinned: true })),
+    ...PLAIN.map((name) => ({ path: folder(name), name, pinned: false })),
+  ],
   panels: [],
   notifications: [],
 }, null, 2));

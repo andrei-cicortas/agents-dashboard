@@ -21,15 +21,17 @@
   --dim: #858585;
 
   --accent: #5c8fff;
+  --red: #ef4444;
   --green: #22c55e;
   --yellow: #eab308;
   --orange: #f97316;
   --grey: #6b7280;
 
-  --radius: 14px;
+  --radius: 12px;
+  --radius-panel: 10px;
   --radius-sm: 7px;
   --radius-xs: 6px;
-  --gap: 10px;
+  --gap: 8px;
   --topbar-height: 44px;
   --sidebar-width: 240px;
   --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
@@ -75,7 +77,6 @@ button { font: inherit; color: inherit; }
   align-items: center;
   margin: 0 calc(var(--gap) * -1);
   padding: 0 12px;
-  box-shadow: inset 0 -1px 0 var(--ring);
 }
 
 .topbar-left { display: flex; align-items: center; gap: 8px; }
@@ -135,8 +136,8 @@ button { font: inherit; color: inherit; }
   height: 15px;
   padding: 0 4px;
   border-radius: 8px;
-  background: var(--accent);
-  color: #0a0a0a;
+  background: var(--red);
+  color: #fff;
   font-size: 10px;
   font-weight: 700;
   line-height: 15px;
@@ -178,7 +179,7 @@ button { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
+  height: 28px;
   padding: 0 6px 0 4px;
   border-radius: var(--radius-sm);
   font-size: 12.5px;
@@ -227,20 +228,38 @@ button { font: inherit; color: inherit; }
 
 .sidebar-empty { padding: 8px; color: var(--dim); font-size: 12px; }
 
-/* Footer status row, in the slot BridgeMind gives to the account. */
-.sidebar-footer {
+/* Account card: who is at this PC, what is running, and the two window-level
+   settings, in the slot a hosted app gives to the signed-in account. */
+.account {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 8px;
-  height: 38px;
+  gap: 9px;
+  height: 50px;
   margin: 0 -6px;
-  padding: 0 10px;
+  padding: 0 8px 0 10px;
   box-shadow: inset 0 1px 0 var(--ring);
-  color: var(--dim);
-  font-size: 11.5px;
 }
-.sidebar-footer .label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.avatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #0a0a0a;
+  font-size: 12px;
+  font-weight: 700;
+}
+.account-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.account-name,
+.account-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-name { font-size: 12px; font-weight: 600; }
+.account-meta { color: var(--dim); font-size: 10.5px; }
+.account-actions { display: flex; flex: none; }
+.account-actions .icon-button { width: 24px; height: 24px; }
 
 /* ---------- Status dots ---------- */
 
@@ -302,49 +321,38 @@ button { font: inherit; color: inherit; }
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border-radius: var(--radius);
+  border-radius: var(--radius-panel);
   background: var(--surface);
   box-shadow: inset 0 0 0 1px var(--ring);
 }
-.panel.focused { box-shadow: inset 0 0 0 1px var(--accent); }
+/* Focus is a brighter edge rather than a coloured one, so six panels side by
+   side stay calm; only a panel asking for input is allowed to shout. */
+.panel.focused { box-shadow: inset 0 0 0 1px var(--ring-strong); }
 .panel.attention { box-shadow: inset 0 0 0 1px var(--orange); }
 
 .panel-header {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 8px;
-  height: 34px;
-  padding: 0 5px 0 9px;
+  gap: 7px;
+  height: 28px;
+  padding: 0 4px 0 10px;
 }
-.panel-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--muted);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.panel.focused .panel-title { color: var(--text); }
 
-/* Square agent mark carrying its initial, with the status as a corner badge. */
+/* Square agent mark carrying its initial, next to the status dot. */
 .panel-mark {
-  position: relative;
   display: flex;
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 19px;
-  height: 19px;
-  border-radius: var(--radius-xs);
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
   color: #0a0a0a;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1;
 }
-.panel-mark .dot { position: absolute; right: -2px; bottom: -2px; box-shadow: 0 0 0 2px var(--surface); }
-.panel-mark .dot.attention { box-shadow: 0 0 0 2px var(--surface), 0 0 0 5px rgba(249, 115, 22, 0.2); }
 
 /* A web pane carries an address bar where a terminal panel has its title. */
 .panel-mark.browser-mark { background: var(--veil-active); color: var(--muted); }
@@ -376,7 +384,7 @@ button { font: inherit; color: inherit; }
   background: #fff;
 }
 
-.panel-actions { display: flex; }
+.panel-actions { display: flex; margin-left: auto; }
 .panel-actions .icon-button { width: 24px; height: 24px; }
 
 .panel-body { position: relative; flex: 1; min-height: 0; }

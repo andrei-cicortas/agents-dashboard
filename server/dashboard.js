@@ -3,6 +3,7 @@
 // whatever this module broadcasts.
 
 import crypto from 'node:crypto';
+import os from 'node:os';
 import path from 'node:path';
 import { addNotification, markRead, markAllRead, unreadCount, removeForPanel } from './notifications.js';
 import { insert, reconcile } from '../shared/tiling.js';
@@ -33,6 +34,9 @@ export function createDashboard({
   now = () => new Date(),
   newId = () => crypto.randomUUID(),
   newSessionId = () => crypto.randomUUID(),
+  // Whoever is signed in to this PC; the sidebar shows it where a hosted app
+  // would show an account.
+  userName = os.userInfo().username,
 }) {
   let projects = [];
   let panels = [];
@@ -80,6 +84,7 @@ export function createDashboard({
       panels: panels.map((panel) => (isBrowser(panel) ? { ...panel } : { ...panel, agentName: agentName(panel.agentId) })),
       notifications,
       layouts,
+      user: { name: userName },
       unread: unreadCount(notifications),
     };
   }

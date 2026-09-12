@@ -36,7 +36,7 @@ function memoryStore(initial) {
   };
 }
 
-function setup({ initial = emptyState(), picked = null, pickFolder = async () => picked } = {}) {
+function setup({ initial = emptyState(), picked = null, pickFolder = async () => picked, userName = 'tester' } = {}) {
   const store = memoryStore(initial);
   const manager = fakeAgentManager();
   const sent = [];
@@ -52,6 +52,7 @@ function setup({ initial = emptyState(), picked = null, pickFolder = async () =>
     now: () => new Date('2026-09-11T10:00:00.000Z'),
     newId: () => `id${++ids}`,
     newSessionId: () => `session${++sessions}`,
+    userName,
   });
   const lastState = () => sent.filter((m) => m.type === 'state').at(-1);
   const send = (message, clientId = 'window1') => dashboard.handleMessage(message, () => {}, clientId);
@@ -482,4 +483,9 @@ test('typing into a browser pane goes nowhere', async () => {
   await send({ type: 'panel:input', panelId: 'id1', data: 'ls\r' });
   await send({ type: 'panel:resize', panelId: 'id1', cols: 80, rows: 24 });
   assert.deepEqual(manager.calls, []);
+});
+
+test('state names the person at the keyboard, for the sidebar account card', () => {
+  const { dashboard } = setup({ userName: 'ada' });
+  assert.deepEqual(dashboard.state().user, { name: 'ada' });
 });

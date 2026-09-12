@@ -1,9 +1,10 @@
-// Top bar: app name, sidebar toggle, Agent/Code/Chat switch, bell, Stop all.
+// Top bar: app name, sidebar toggle, Agent/Code/Chat switch, arrange, bell.
+// The theme and the power switch live in the sidebar account card instead —
+// they belong to the window, not to the canvas.
 
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
-import { THEMES } from '/shared/themes.js';
 
 const TABS = [
   { id: 'agent', label: 'Agent' },
@@ -24,14 +25,6 @@ export function createTopbar(root, actions) {
       { label: '4 columns', onSelect: () => actions.tidyLayout(4) },
     ]),
   }, icon('layout'));
-  const themeButton = h('button', {
-    class: 'icon-button',
-    title: 'Colour theme',
-    onClick: () => openMenu(themeButton, THEMES.map((theme) => ({
-      label: theme.name,
-      onSelect: () => actions.setTheme(theme.id),
-    }))),
-  }, icon('palette'));
   const buttons = TABS.map((tab) => h('button', {
     class: 'tab',
     role: 'tab',
@@ -43,11 +36,7 @@ export function createTopbar(root, actions) {
       h('div', { class: 'brand' }, icon('logo', { size: 18 }), 'Agents Dashboard'),
       h('button', { class: 'icon-button', title: 'Toggle sidebar', onClick: () => actions.toggleSidebar() }, icon('sidebar'))),
     h('div', { class: 'tabs', role: 'tablist' }, buttons),
-    h('div', { class: 'topbar-right' },
-      layoutButton,
-      themeButton,
-      bellMount,
-      h('button', { class: 'icon-button', title: 'Stop all agents and close the dashboard', onClick: () => actions.stopAll() }, icon('power'))),
+    h('div', { class: 'topbar-right' }, layoutButton, bellMount),
   );
 
   return {

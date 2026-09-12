@@ -5,7 +5,7 @@ import { FitAddon } from '/vendor/addon-fit/lib/addon-fit.mjs';
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
-import { folderName, panelLabel } from '/shared/labels.js';
+import { panelLabel } from '/shared/labels.js';
 import { dotClass } from '/shared/status.js';
 import { terminalTheme } from '/shared/themes.js';
 import { agentColour, agentInitial } from './agent-mark.js';
@@ -23,8 +23,7 @@ export function createPanel(initialPanel, actions, theme) {
 
   const dot = h('span', { class: 'dot' });
   const markInitial = h('span', {});
-  const mark = h('span', { class: 'panel-mark' }, markInitial, dot);
-  const title = h('span', { class: 'panel-title' });
+  const mark = h('span', { class: 'panel-mark' }, markInitial);
   const moreButton = h('button', {
     class: 'icon-button',
     title: 'More',
@@ -49,8 +48,8 @@ export function createPanel(initialPanel, actions, theme) {
 
   const element = h('div', { class: 'panel', dataset: { panelId: panel.id } },
     h('div', { class: 'panel-header', onDblclick: () => actions.toggleMaximize(panel.id) },
+      dot,
       mark,
-      title,
       h('div', { class: 'panel-actions' }, moreButton, maximizeButton, plusButton, closeButton)),
     h('div', { class: 'panel-body' }, host, overlay));
   element.addEventListener('pointerdown', () => actions.focusPanel(panel.id));
@@ -117,12 +116,10 @@ export function createPanel(initialPanel, actions, theme) {
     panel = nextPanel;
     dot.className = `dot ${dotClass(panel)}`;
     mark.style.background = agentColour(panel.agentId);
-    mark.title = panel.agentName;
     markInitial.textContent = agentInitial(panel);
-    // The mark says which agent this is, so the header can spend its width on
-    // the folder; the full label stays in the tooltip.
-    title.textContent = folderName(panel.cwd);
-    title.title = `${panelLabel(panel)}
+    // The canvas shows one workspace at a time, so every panel would repeat the
+    // same folder; the header stays bare and the words live in the tooltip.
+    mark.title = `${panelLabel(panel)}
 ${panel.cwd}`;
     element.classList.toggle('focused', focused);
     element.classList.toggle('attention', panel.attention);

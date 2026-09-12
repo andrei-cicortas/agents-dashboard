@@ -12,7 +12,7 @@ import { createBrowserPane } from './browser-pane.js';
 
 // Half the gap between neighbours, in pixels; the other half comes from the
 // panel on the other side of the seam.
-const HALF_GAP = 5;
+const HALF_GAP = 4;
 const DIVIDER_GRAB = 9;
 const WHOLE_CANVAS = { left: 0, top: 0, width: 100, height: 100 };
 
