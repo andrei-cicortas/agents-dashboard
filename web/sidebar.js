@@ -110,6 +110,11 @@ export function createSidebar(root, actions) {
       picker.failed(message);
     },
 
+    // Opened from somewhere other than the + beside the header.
+    openPicker() {
+      if (!picker.isOpen()) picker.open();
+    },
+
     render(model) {
       const { state } = model;
       if (!state) return;

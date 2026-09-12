@@ -17,6 +17,15 @@ export function installShortcuts(actions, model) {
     if (event.altKey || event.metaKey || !event.ctrlKey) return;
     const digit = TABS[Number(event.key) - 1];
 
+    // The one box that finds anything. Like the tab keys below it, this is
+    // taken from the terminal rather than shared with it.
+    if ((event.key === 'k' || event.key === 'K') && !event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      actions.togglePalette();
+      return;
+    }
+
     // Switching tabs works from anywhere, including from inside a terminal:
     // it is how you get out of one without reaching for the mouse. Stopped
     // here and now, because a terminal turns some of these into control codes

@@ -68,10 +68,19 @@ An agent writes far more than fits on a screen. **Ctrl+F** inside a panel, or
 every match is highlighted, the one you are on in yellow, and Enter and
 Shift+Enter walk forwards and back. Escape closes it.
 
+## Ctrl+K
+
+One box that finds anything in the app: a folder, a terminal, a named agent, a
+chat — and the handful of things worth starting. Type a few letters of the
+name, in order but not necessarily next to each other (`sptg` finds "Spider
+Tag"), and Enter goes there, switching tabs on the way if it has to. A folder's
+name also finds everything working in that folder.
+
 ## Keyboard
 
 | | |
 |---|---|
+| `Ctrl+K` | Go to anything |
 | `Ctrl+1` `Ctrl+2` `Ctrl+3` | Agent, Code, Chat — even from inside a terminal |
 | `Ctrl+B` | Show or hide the sidebar |
 | `Ctrl+N` | New chat, or a new thread for the agent you are on |
@@ -263,6 +272,8 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
       through them, and the agent never sees the keystroke.
 - [ ] Ctrl+3 with the caret in a terminal → the Chat tab opens and the agent
       gets nothing (no stray Escape).
+- [ ] Ctrl+K, type a few letters of a folder → Enter opens it on the Code tab.
+- [ ] Ctrl+K, type part of a chat name → Enter opens that chat on the Chat tab.
 - [ ] Split a panel right, then down → the three tile with no gaps.
 - [ ] Drag a line between two panels → both resize, and neither can be dragged
       away to nothing.

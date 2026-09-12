@@ -10,12 +10,13 @@ import { createAgentView } from './agent-view.js';
 import { createChatRail } from './chat-rail.js';
 import { createChatView } from './chat-view.js';
 import { installShortcuts } from './shortcuts.js';
+import { createPalette } from './palette.js';
 import { createBell } from './bell.js';
 import { createCanvas } from './canvas.js';
 import { isActive, sameFolder } from '/shared/status.js';
 import { reconcile, tidy } from '/shared/tiling.js';
 import { mergeLayouts } from '/shared/layout-sync.js';
-import { cssVariables, DEFAULT_THEME_ID, themeById } from '/shared/themes.js';
+import { cssVariables, DEFAULT_THEME_ID, otherTheme, themeById } from '/shared/themes.js';
 
 const PREFS_KEY = 'agents-dashboard-ui';
 const DEFAULT_ADDRESS = 'http://localhost:3000';
@@ -156,8 +157,8 @@ const actions = {
     syncFocus();
   },
 
-  createProfile({ name, cwd, instructions, model }) {
-    api.send('profile:create', { name, cwd, instructions, model });
+  createProfile({ name, cwd, instructions, model: wanted }) {
+    api.send('profile:create', { name, cwd, instructions, model: wanted });
   },
 
   removeProfile(profileId) {
@@ -181,8 +182,8 @@ const actions = {
     api.send('profile:update', { profileId, tools: allowWrite ? WRITE_TOOLS : [] });
   },
 
-  setProfileModel(profileId, model) {
-    api.send('profile:update', { profileId, model });
+  setProfileModel(profileId, wanted) {
+    api.send('profile:update', { profileId, model: wanted });
   },
 
   createThread(profileId) {
@@ -443,7 +444,41 @@ const actions = {
   readAllNotifications() {
     api.send('notifications:read', { all: true });
   },
+
+  // ---- Ctrl+K -----------------------------------------------------------
+
+  togglePalette() {
+    if (palette.isOpen()) palette.close();
+    else palette.open();
+  },
+
+  // What the palette does with whatever was picked. Everything it offers is
+  // something one of the actions above already does.
+  openPaletteItem({ kind, targetId }) {
+    if (kind === 'command') return COMMANDS.find((one) => one.id === targetId)?.run();
+    if (kind === 'workspace') return actions.selectWorkspace(targetId);
+    if (kind === 'panel') return actions.focusPanel(targetId);
+    if (kind === 'chat') {
+      model.tab = 'chat';
+      return actions.selectChat(targetId);
+    }
+    if (kind === 'agent') {
+      model.tab = 'agent';
+      return actions.selectProfile(targetId);
+    }
+    return undefined;
+  },
 };
+
+// The few things worth starting from the same box you search in.
+const COMMANDS = [
+  { id: 'new-chat', label: 'New chat', hint: 'Ctrl+N on the Chat tab', run: () => { actions.setTab('chat'); actions.newChat(); } },
+  { id: 'add-folder', label: 'Add a project folder', hint: 'Command', run: () => { actions.setTab('code'); sidebar.openPicker(); } },
+  { id: 'tidy', label: 'Tidy the panels', hint: 'Command', run: () => { actions.setTab('code'); actions.tidyLayout(); } },
+  { id: 'theme', label: 'Switch theme', hint: 'Dark and Light', run: () => actions.setTheme(otherTheme(model.theme).id) },
+  { id: 'sidebar', label: 'Show or hide the sidebar', hint: 'Ctrl+B', run: () => actions.toggleSidebar() },
+  { id: 'stop-all', label: 'Stop all agents and close', hint: 'Command', run: () => actions.stopAll() },
+];
 
 const topbar = createTopbar(byId('topbar'), actions);
 const bell = createBell(topbar.bellMount, actions);
@@ -454,6 +489,7 @@ const agentView = createAgentView(byId('agent-view'), actions);
 const chatRail = createChatRail(byId('chat-rail'), actions);
 const chatView = createChatView(byId('chat-view'), actions);
 const canvas = createCanvas(byId('canvas'), byId('empty'), actions, model.theme);
+const palette = createPalette(actions);
 
 // The stylesheet ships the default theme, so the page is already dressed
 // before this runs; setting the same custom properties here swaps it.
@@ -524,6 +560,7 @@ function render() {
   chatRail.render(model);
   chatView.render(model);
   canvas.render(model);
+  palette.render(model, COMMANDS);
   syncLayout(path);
 }
 
