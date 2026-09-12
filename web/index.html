@@ -11,7 +11,11 @@
 <body>
   <div class="app" id="app">
     <header class="topbar" id="topbar"></header>
-    <aside class="sidebar" id="sidebar"></aside>
+    <aside class="sidebar">
+      <div class="rail" id="workspace-rail"></div>
+      <div class="rail" id="agent-rail" hidden></div>
+      <div class="account" id="account"></div>
+    </aside>
     <main class="main">
       <section class="code-view" id="code-view">
         <div class="canvas" id="canvas"></div>
@@ -20,10 +24,7 @@
           <div class="empty-text" id="empty-text">Click + next to Workspaces to add a project folder.</div>
         </div>
       </section>
-      <section class="agent-view" id="agent-view" hidden>
-        <div class="empty-title">Agent mode is coming soon</div>
-        <div class="empty-text">Named agents with their own threads will live here.</div>
-      </section>
+      <section class="agent-view" id="agent-view" hidden></section>
       <section class="chat-view" id="chat-view" hidden>
         <div class="empty-title">Chat is coming soon</div>
         <div class="empty-text">A simple AI chat will live here.</div>

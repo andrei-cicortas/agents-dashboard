@@ -3,6 +3,9 @@
 import { connect } from './api.js';
 import { createTopbar } from './topbar.js';
 import { createSidebar } from './sidebar.js';
+import { createAccount } from './account.js';
+import { createAgentRail } from './agent-rail.js';
+import { createAgentView } from './agent-view.js';
 import { createBell } from './bell.js';
 import { createCanvas } from './canvas.js';
 import { isActive, sameFolder } from '/shared/status.js';
@@ -12,6 +15,9 @@ import { cssVariables, DEFAULT_THEME_ID, themeById } from '/shared/themes.js';
 
 const PREFS_KEY = 'agents-dashboard-ui';
 const DEFAULT_ADDRESS = 'http://localhost:3000';
+// What an agent is given when it is allowed to change things. Its folder is
+// the only place it can reach, because that is where the CLI is run.
+const WRITE_TOOLS = ['Read', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'Edit', 'Write', 'Bash'];
 const byId = (id) => document.getElementById(id);
 
 function loadPrefs() {
@@ -32,6 +38,9 @@ const model = {
   collapsedProjects: new Set(prefs.collapsedProjects ?? []),
   sidebarCollapsed: Boolean(prefs.sidebarCollapsed),
   selectedWorkspace: prefs.selectedWorkspace ?? null,
+  // Agent tab: the agent being looked at, and which of its threads.
+  selectedProfileId: prefs.selectedProfileId ?? null,
+  selectedThreadId: null,
   theme: themeById(prefs.theme ?? DEFAULT_THEME_ID),
   // Layouts per workspace path. Kept here rather than read straight off the
   // server state, so a broadcast sent for some other reason cannot undo a
@@ -47,6 +56,7 @@ function savePrefs() {
       collapsedProjects: [...model.collapsedProjects],
       sidebarCollapsed: model.sidebarCollapsed,
       selectedWorkspace: model.selectedWorkspace,
+      selectedProfileId: model.selectedProfileId,
       theme: model.theme.id,
     }));
   } catch {
@@ -106,7 +116,64 @@ function syncFocus() {
 const actions = {
   setTab(tab) {
     model.tab = tab;
+    savePrefs();
     render();
+  },
+
+  // ---- Agent tab --------------------------------------------------------
+
+  selectProfile(profileId) {
+    model.selectedProfileId = profileId;
+    model.selectedThreadId = null;
+    savePrefs();
+    render();
+  },
+
+  createProfile({ name, cwd, instructions }) {
+    api.send('profile:create', { name, cwd, instructions });
+  },
+
+  removeProfile(profileId) {
+    const profile = model.state?.profiles?.find((one) => one.id === profileId);
+    if (!profile) return;
+    if (!confirm(`Remove ${profile.name} and all of its threads?`)) return;
+    api.send('profile:remove', { profileId });
+  },
+
+  renameProfile(profileId) {
+    const profile = model.state?.profiles?.find((one) => one.id === profileId);
+    if (!profile) return;
+    const name = prompt('Name for this agent', profile.name);
+    if (name && name.trim()) api.send('profile:update', { profileId, name });
+  },
+
+  // An agent answers with nobody watching, so widening what it may touch is
+  // asked about rather than toggled quietly.
+  setProfileTools(profileId, allowWrite) {
+    if (allowWrite && !confirm('Let this agent run commands and change files in its folder?')) return;
+    api.send('profile:update', { profileId, tools: allowWrite ? WRITE_TOOLS : [] });
+  },
+
+  createThread(profileId) {
+    api.send('thread:create', { profileId });
+  },
+
+  selectThread(threadId) {
+    model.selectedThreadId = threadId;
+    render();
+  },
+
+  closeThread(threadId) {
+    api.send('thread:remove', { threadId });
+  },
+
+  sendToThread(threadId, text) {
+    model.selectedThreadId = threadId;
+    api.send('thread:send', { threadId, text });
+  },
+
+  cancelThread(threadId) {
+    api.send('thread:cancel', { threadId });
   },
 
   toggleSidebar() {
@@ -263,7 +330,10 @@ const actions = {
 
 const topbar = createTopbar(byId('topbar'), actions);
 const bell = createBell(topbar.bellMount, actions);
-const sidebar = createSidebar(byId('sidebar'), actions);
+const sidebar = createSidebar(byId('workspace-rail'), actions);
+const account = createAccount(byId('account'), actions);
+const agentRail = createAgentRail(byId('agent-rail'), actions);
+const agentView = createAgentView(byId('agent-view'), actions);
 const canvas = createCanvas(byId('canvas'), byId('empty'), actions, model.theme);
 
 // The stylesheet ships the default theme, so the page is already dressed
@@ -291,6 +361,10 @@ function render() {
   byId('code-view').hidden = model.tab !== 'code';
   byId('agent-view').hidden = model.tab !== 'agent';
   byId('chat-view').hidden = model.tab !== 'chat';
+  // The sidebar shows whichever list belongs to the tab in front.
+  const agentTab = model.tab === 'agent';
+  byId('workspace-rail').hidden = agentTab;
+  byId('agent-rail').hidden = !agentTab;
 
   const path = currentWorkspace();
   model.selectedWorkspace = path;
@@ -303,9 +377,18 @@ function render() {
 
   const unread = model.state?.unread ?? 0;
   document.title = unread ? `(${unread}) Agents Dashboard` : 'Agents Dashboard';
+  // Nothing points at an agent until there is one to point at.
+  const profiles = model.state?.profiles ?? [];
+  if (!profiles.some((one) => one.id === model.selectedProfileId)) {
+    model.selectedProfileId = profiles[0]?.id ?? null;
+  }
+
   topbar.render(model);
   bell.render(model);
   sidebar.render(model);
+  account.render(model);
+  agentRail.render(model);
+  agentView.render(model);
   canvas.render(model);
   syncLayout(path);
 }

@@ -1,44 +1,14 @@
-// Workspaces sidebar: pinned projects, then every other folder, each with its
-// agents underneath, and an account card in the footer.
+// Workspaces rail: pinned projects, then every other folder, each with its
+// agents underneath.
 
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { panelLabel } from '/shared/labels.js';
-import { dotClass, isActive, sameFolder } from '/shared/status.js';
-import { THEMES } from '/shared/themes.js';
-
-const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+import { dotClass, sameFolder } from '/shared/status.js';
 
 export function createSidebar(root, actions) {
   const scroll = h('div', { class: 'sidebar-scroll' });
-  // The footer carries what a hosted app would put in its account slot: who is
-  // at this PC, what is running, and the two settings that belong to the window
-  // rather than to any agent.
-  const avatar = h('span', { class: 'avatar' });
-  const accountName = h('span', { class: 'account-name' });
-  const accountMeta = h('span', { class: 'account-meta' });
-  const themeButton = h('button', {
-    class: 'icon-button',
-    title: 'Colour theme',
-    onClick: () => openMenu(themeButton, THEMES.map((theme) => ({
-      label: theme.name,
-      onSelect: () => actions.setTheme(theme.id),
-    }))),
-  }, icon('moon', { size: 15 }));
-  const settingsButton = h('button', {
-    class: 'icon-button',
-    title: 'Settings',
-    onClick: () => openMenu(settingsButton, [
-      { label: 'Add a project folder', onSelect: () => actions.addProject() },
-      { label: 'Stop all agents and close', onSelect: () => actions.stopAll() },
-    ]),
-  }, icon('settings', { size: 15 }));
-  const footer = h('div', { class: 'account' },
-    avatar,
-    h('div', { class: 'account-text' }, accountName, accountMeta),
-    h('div', { class: 'account-actions' }, themeButton, settingsButton));
-
   function agentRow(panel, model) {
     const selected = panel.id === model.focusedPanelId;
     return h('div', {
@@ -116,7 +86,7 @@ export function createSidebar(root, actions) {
   const header = h('div', { class: 'sidebar-header' },
     h('span', { class: 'title' }, 'Workspaces'),
     h('button', { class: 'icon-button', title: 'Add a project folder', onClick: () => actions.addProject() }, icon('plus')));
-  root.replaceChildren(header, scroll, footer);
+  root.replaceChildren(header, scroll);
 
   return {
     render(model) {
@@ -137,11 +107,7 @@ export function createSidebar(root, actions) {
       }
       scroll.replaceChildren(...content);
 
-      const running = state.panels.filter(isActive).length;
-      const name = state.user?.name || 'Local';
-      avatar.textContent = name.slice(0, 1).toUpperCase();
-      accountName.textContent = name;
-      accountMeta.textContent = `${running} running · ${plural(state.projects.length, 'folder')}`;
+
     },
   };
 }

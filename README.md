@@ -68,6 +68,41 @@ Some sites refuse to be shown inside another page (they send
 `X-Frame-Options` or a `frame-ancestors` policy) and will come up blank. Local
 dev servers normally do not.
 
+## Agent mode
+
+The **Agent** tab is the other half of the app. Where the Code tab gives you a
+terminal to sit at, an agent answers on its own: you name it, give it a folder
+and standing instructions, and then hold conversations with it.
+
+- **+** next to Agents names one. The instructions are appended to its system
+  prompt, so they apply to everything it is ever asked.
+- Each agent keeps **threads** — separate conversations, shown as tabs. A
+  thread remembers its session, so a later message continues where it left off.
+- The transcript shows a line per thing: what you asked, what it did (each tool
+  with a tick when it worked), and what it said back.
+
+It runs the Claude Code CLI you already have, so it signs in the way the rest
+of the app does — no API key and no second subscription — and each message
+costs what a Claude Code message costs.
+
+### What an agent is allowed to touch
+
+A new agent can only **read**: Read, Glob, Grep, WebSearch and WebFetch. It
+cannot run commands or change files. Nobody is sitting there to approve
+anything, so that is the only safe default.
+
+The gear next to its name has **Let it change files**, which asks first and
+then adds Edit, Write and Bash. Give that to an agent whose folder you would
+be happy to see rewritten.
+
+The list is enforced by handing the CLI the set of tools that exist for that
+run, not by forbidding tools by name: told it could not use Bash, an agent
+found another tool that also runs commands and used that instead.
+
+Agents also run with the CLI's `--safe-mode`, so your own CLAUDE.md, skills,
+hooks and MCP servers are left out. An agent should behave the way its own
+instructions say, not the way your machine happens to be set up.
+
 ## Colour themes
 
 The moon button in the sidebar's account card switches between ten dark themes
@@ -96,7 +131,8 @@ Restart the dashboard (Settings → stop, then the shortcut).
 
 ## Where things are stored
 
-- State (workspaces, panels, notifications, panel arrangements):
+- State (workspaces, panels, notifications, panel arrangements, agents and
+  their threads):
   `%APPDATA%\agents-dashboard\state.json`
 - Server logs: `%APPDATA%\agents-dashboard\server.log` and `server-error.log`
 
@@ -149,6 +185,13 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
       Reload fetches it again.
 - [ ] Close the window and open it again → the web pane comes back on the same
       address.
+- [ ] Agent tab → **+** → name an agent and pick a folder → it appears in the rail.
+- [ ] Ask it something → the status says Working, then Ready, and the answer
+      appears with a line per tool it used.
+- [ ] Ask it to run a shell command → it says it has no tool for that.
+- [ ] Gear → Let it change files → confirm → the header says it may change files.
+- [ ] Open a second thread, ask something else → the two tabs keep their own
+      conversations, and each continues where it left off after a reload.
 - [ ] Start Codex (or see the install hint if it is not installed).
 - [ ] Close the window, wait, open the shortcut again → the panels are still there with their output.
 - [ ] Settings → Stop all agents and close → confirm → "Dashboard stopped".

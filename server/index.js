@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { createAgentManager } from './agent-manager.js';
 import { loadAgents, claudeHooksSettings, codexNotifyValue } from './agents-config.js';
+import { createAgentRunner } from './agent-runner.js';
 import { createDashboard } from './dashboard.js';
 import { pickFolder as nativePickFolder } from './folder-picker.js';
 import { isAllowedHost, isAllowedOrigin, createToken, isValidToken } from './security.js';
@@ -105,6 +106,7 @@ export async function startServer({
   const dashboard = createDashboard({
     store: createStore(stateFile),
     agentManager,
+    agentRunner: createAgentRunner(),
     agents,
     pickFolder,
     broadcast,

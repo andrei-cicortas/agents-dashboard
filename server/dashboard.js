@@ -8,6 +8,7 @@ import path from 'node:path';
 import { addNotification, markRead, markAllRead, unreadCount, removeForPanel } from './notifications.js';
 import { insert, reconcile } from '../shared/tiling.js';
 import { webAddress } from '../shared/address.js';
+import { applyEvent, emptyTranscript } from '../shared/transcript.js';
 
 const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 
@@ -27,6 +28,7 @@ function samePath(a, b) {
 export function createDashboard({
   store,
   agentManager,
+  agentRunner = null,
   agents,
   pickFolder,
   broadcast,
@@ -44,6 +46,14 @@ export function createDashboard({
   // Tiling layout per workspace path; the UI owns its shape, the server only
   // keeps it so it survives closing the window.
   let layouts = {};
+  // Agent mode. A profile is a named agent — a name, a folder and standing
+  // instructions; a thread is one conversation with it, which is a session of
+  // the Claude CLI continued by its id. Runs in progress are not saved: a run
+  // dies with the server, so it is deliberately kept out of the state file.
+  let profiles = [];
+  let threads = [];
+  const runsByThread = new Map();
+
   // Guards against a second folder-picker process spawning while one is
   // already open (each extra click otherwise stacks another hidden dialog).
   let addingProject = false;
@@ -52,6 +62,13 @@ export function createDashboard({
   const focusByClient = new Map();
 
   const agentName = (agentId) => agents.find((agent) => agent.id === agentId)?.name ?? agentId;
+  const findProfile = (profileId) => profiles.find((profile) => profile.id === profileId);
+  const findThread = (threadId) => threads.find((thread) => thread.id === threadId);
+  // Enough colours to tell a rail of agents apart at a glance; past the end it
+  // starts over rather than inventing something unreadable.
+  const PROFILE_COLOURS = ['#f97362', '#5c8fff', '#22c55e', '#eab308', '#a855f7', '#06b6d4'];
+  const TITLE_LENGTH = 60;
+  const threadTitle = (text) => (text.length > TITLE_LENGTH ? `${text.slice(0, TITLE_LENGTH - 1)}…` : text);
   const findPanel = (panelId) => panels.find((panel) => panel.id === panelId);
   const panelsOfFolder = (cwd) => panels.filter((panel) => samePath(panel.cwd, cwd));
 
@@ -84,6 +101,8 @@ export function createDashboard({
       panels: panels.map((panel) => (isBrowser(panel) ? { ...panel } : { ...panel, agentName: agentName(panel.agentId) })),
       notifications,
       layouts,
+      profiles,
+      threads,
       user: { name: userName },
       unread: unreadCount(notifications),
     };
@@ -97,6 +116,9 @@ export function createDashboard({
         : { id: panel.id, agentId: panel.agentId, cwd: panel.cwd, sessionId: panel.sessionId, title: panel.title })),
       notifications,
       layouts,
+      profiles,
+      // A run cannot survive the server, so nothing is saved as still working.
+      threads: threads.map((thread) => ({ ...thread, status: thread.status === 'working' ? 'idle' : thread.status })),
     });
   }
 
@@ -148,6 +170,13 @@ export function createDashboard({
     projects = saved.projects;
     notifications = saved.notifications;
     layouts = saved.layouts ?? {};
+    profiles = saved.profiles ?? [];
+    threads = (saved.threads ?? []).map((thread) => ({
+      ...thread,
+      items: thread.items ?? emptyTranscript(),
+      // Whatever was in flight died with the last server; nothing is working now.
+      status: thread.status === 'working' ? 'idle' : thread.status,
+    }));
     panels = saved.panels.map((panel) => ({
       ...panel,
       status: isBrowser(panel) ? 'browser' : 'starting',
@@ -159,6 +188,42 @@ export function createDashboard({
     publish();
   }
 
+  // ---- Agent mode --------------------------------------------------------
+
+  function runThread(thread, profile) {
+    const run = agentRunner.run({
+      cwd: profile.cwd,
+      prompt: thread.items.at(-1).text,
+      sessionId: thread.sessionId ?? null,
+      instructions: profile.instructions ?? '',
+      tools: profile.tools ?? null,
+    }, {
+      onEvent(event) {
+        // The thread may have been closed while the agent was still talking.
+        const live = findThread(thread.id);
+        if (!live) return;
+        // The first event of a run names the session, which is how the next
+        // message continues this same conversation rather than starting one.
+        if (event.type === 'system' && event.subtype === 'init' && event.session_id) {
+          live.sessionId = event.session_id;
+        }
+        const items = applyEvent(live.items, event);
+        if (items === live.items) return;
+        live.items = items;
+        commit();
+      },
+      onDone({ ok, message }) {
+        runsByThread.delete(thread.id);
+        const live = findThread(thread.id);
+        if (!live) return;
+        live.status = ok ? 'idle' : 'failed';
+        if (!ok) live.items = applyEvent(live.items, { type: 'result', subtype: 'error', result: message });
+        commit();
+      },
+    });
+    runsByThread.set(thread.id, run);
+  }
+
   const handlers = {
     hello(_message, reply) {
       reply(state());
@@ -166,6 +231,86 @@ export function createDashboard({
         if (isBrowser(panel)) continue;
         reply({ type: 'panel:replay', panelId: panel.id, data: agentManager.readScrollback(panel.id) });
       }
+    },
+
+    'profile:create'({ name, cwd, instructions, tools }) {
+      const trimmed = String(name ?? '').trim();
+      if (!trimmed) return;
+      profiles.push({
+        id: newId(),
+        name: trimmed,
+        cwd: cwd ?? '',
+        instructions: String(instructions ?? '').trim(),
+        tools: Array.isArray(tools) && tools.length ? tools : null,
+        colour: PROFILE_COLOURS[profiles.length % PROFILE_COLOURS.length],
+      });
+      commit();
+    },
+
+    'profile:update'({ profileId, name, cwd, instructions, tools }) {
+      const profile = findProfile(profileId);
+      if (!profile) return;
+      const trimmed = String(name ?? '').trim();
+      if (trimmed) profile.name = trimmed;
+      if (cwd !== undefined) profile.cwd = cwd;
+      if (instructions !== undefined) profile.instructions = String(instructions).trim();
+      if (tools !== undefined) profile.tools = Array.isArray(tools) && tools.length ? tools : null;
+      commit();
+    },
+
+    'profile:remove'({ profileId }) {
+      if (!findProfile(profileId)) return;
+      for (const thread of threads.filter((one) => one.profileId === profileId)) {
+        runsByThread.get(thread.id)?.cancel();
+        runsByThread.delete(thread.id);
+      }
+      profiles = profiles.filter((profile) => profile.id !== profileId);
+      threads = threads.filter((thread) => thread.profileId !== profileId);
+      commit();
+    },
+
+    'thread:create'({ profileId }) {
+      if (!findProfile(profileId)) return;
+      threads.push({
+        id: newId(),
+        profileId,
+        title: 'New thread',
+        sessionId: null,
+        items: emptyTranscript(),
+        status: 'idle',
+      });
+      commit();
+    },
+
+    'thread:remove'({ threadId }) {
+      runsByThread.get(threadId)?.cancel();
+      runsByThread.delete(threadId);
+      threads = threads.filter((thread) => thread.id !== threadId);
+      commit();
+    },
+
+    'thread:send'({ threadId, text }) {
+      const thread = findThread(threadId);
+      const prompt = String(text ?? '').trim();
+      // One turn at a time: a second message would start a second CLI on the
+      // same session and the two would write over each other.
+      if (!thread || !prompt || thread.status === 'working' || !agentRunner) return;
+      const profile = findProfile(thread.profileId);
+      if (!profile) return;
+      if (!thread.items.length) thread.title = threadTitle(prompt);
+      thread.items = applyEvent(thread.items, { type: 'prompt', text: prompt });
+      thread.status = 'working';
+      commit();
+      runThread(thread, profile);
+    },
+
+    'thread:cancel'({ threadId }) {
+      const thread = findThread(threadId);
+      if (!thread) return;
+      runsByThread.get(threadId)?.cancel();
+      runsByThread.delete(threadId);
+      thread.status = 'idle';
+      commit();
     },
 
     async 'project:add'() {

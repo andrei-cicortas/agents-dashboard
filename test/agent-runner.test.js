@@ -55,17 +55,34 @@ test('instructions that are blank are left out rather than sent empty', () => {
   assert.ok(!runArgs({ prompt: 'go', instructions: '   ' }).includes('--append-system-prompt'));
 });
 
-test('an agent may only read, unless it was given a wider list on purpose', () => {
+test('the tools an agent has are the only ones that exist for it', () => {
+  // A deny list does not hold: denied Bash, the agent reached for another
+  // tool that also runs commands. --tools decides what exists at all, so the
+  // list has to be given that way, and named as allowed so nothing stops to
+  // ask a person who is not there.
   const args = runArgs({ prompt: 'go' });
-  const at = args.indexOf('--allowedTools');
-  assert.deepEqual(args.slice(at + 1, at + 1 + READ_ONLY_TOOLS.length), READ_ONLY_TOOLS);
-  assert.ok(!READ_ONLY_TOOLS.includes('Bash'), 'the safe list must not be able to run commands');
-  assert.ok(!READ_ONLY_TOOLS.includes('Write'), 'the safe list must not be able to write files');
-  assert.ok(!READ_ONLY_TOOLS.includes('Edit'), 'the safe list must not be able to edit files');
+  const at = args.indexOf('--tools');
+  assert.notEqual(at, -1, 'the set of tools must be stated, not left at the default');
+  assert.equal(args[at + 1], READ_ONLY_TOOLS.join(','));
+  const allowed = args.indexOf('--allowedTools');
+  assert.deepEqual(args.slice(allowed + 1, allowed + 1 + READ_ONLY_TOOLS.length), READ_ONLY_TOOLS);
+});
 
-  const wider = runArgs({ prompt: 'go', tools: ['Read', 'Edit'] });
-  const widerAt = wider.indexOf('--allowedTools');
-  assert.deepEqual(wider.slice(widerAt + 1, widerAt + 3), ['Read', 'Edit']);
+test('the reading set cannot run anything or change anything', () => {
+  for (const tool of ['Bash', 'PowerShell', 'Write', 'Edit', 'NotebookEdit', 'Task', 'Monitor']) {
+    assert.ok(!READ_ONLY_TOOLS.includes(tool), `${tool} must not be in the reading set`);
+  }
+});
+
+test('an agent trusted with more gets exactly what it was trusted with', () => {
+  const args = runArgs({ prompt: 'go', tools: ['Read', 'Edit', 'Bash'] });
+  assert.equal(args[args.indexOf('--tools') + 1], 'Read,Edit,Bash');
+});
+
+test('an agent runs without the setup belonging to this PC, so it follows its own instructions', () => {
+  // Skills, hooks, MCP servers and CLAUDE.md belong to whoever is at the
+  // keyboard; a named agent should behave the same whatever they have installed.
+  assert.ok(runArgs({ prompt: 'go' }).includes('--safe-mode'));
 });
 
 test('the agent runs in its own folder', () => {

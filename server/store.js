@@ -14,7 +14,7 @@ function sleepSync(ms) {
 }
 
 export function emptyState() {
-  return { projects: [], panels: [], notifications: [], layouts: {} };
+  return { projects: [], panels: [], notifications: [], layouts: {}, profiles: [], threads: [] };
 }
 
 // `fs` can be replaced in tests to simulate disk errors.
@@ -78,5 +78,7 @@ function normalize(parsed) {
     panels: list(parsed.panels),
     notifications: list(parsed.notifications),
     layouts: map(parsed.layouts),
+    profiles: list(parsed.profiles),
+    threads: list(parsed.threads),
   };
 }

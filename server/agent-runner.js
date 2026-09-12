@@ -17,7 +17,16 @@ export function runArgs({ prompt, sessionId, instructions, tools, model }) {
   if (sessionId) args.push('--resume', sessionId);
   if (instructions && instructions.trim()) args.push('--append-system-prompt', instructions.trim());
   if (model) args.push('--model', model);
-  args.push('--allowedTools', ...(tools?.length ? tools : READ_ONLY_TOOLS));
+  const set = tools?.length ? tools : READ_ONLY_TOOLS;
+  // --tools decides which tools exist at all. Denying a tool by name does not
+  // hold: told it could not use Bash, an agent found another tool that also
+  // runs commands and used that instead. --allowedTools then says these may be
+  // used without stopping to ask a person who is not sitting there.
+  args.push('--tools', set.join(','), '--allowedTools', ...set);
+  // Skills, hooks, MCP servers and CLAUDE.md belong to whoever is at this PC.
+  // An agent here should answer from its own instructions instead, and behave
+  // the same on a machine set up differently.
+  args.push('--safe-mode');
   return args;
 }
 
