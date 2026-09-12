@@ -66,6 +66,43 @@ function fromToolResults(items, event) {
   return changed ? next : items;
 }
 
+function fromResult(items, event) {
+  if (event.subtype !== 'success') {
+    return [...items, { kind: 'failed', text: event.result ?? 'The agent stopped.' }];
+  }
+  // A successful run ends by repeating its own last words, which are already
+  // in the transcript. What it has to add is what the turn took — worth
+  // knowing when you are learning what these things cost.
+  const usage = event.usage ?? {};
+  const read = (usage.input_tokens ?? 0)
+    + (usage.cache_read_input_tokens ?? 0)
+    + (usage.cache_creation_input_tokens ?? 0);
+  return [...items, {
+    kind: 'done',
+    ms: Number.isFinite(event.duration_ms) ? event.duration_ms : null,
+    cost: Number.isFinite(event.total_cost_usd) ? event.total_cost_usd : null,
+    read,
+    wrote: usage.output_tokens ?? 0,
+  }];
+}
+
+// How long it took, and how much went through the model, in the shortest form
+// that is still true.
+const seconds = (ms) => (ms >= 9500 ? `${Math.round(ms / 1000)}s` : `${(ms / 1000).toFixed(1)}s`);
+const tokens = (count) => (count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count));
+
+export function turnLine({ ms = null, cost = null, read = 0, wrote = 0 } = {}) {
+  const text = [
+    ms === null ? null : seconds(ms),
+    `${tokens(read)} in`,
+    `${tokens(wrote)} out`,
+  ].filter(Boolean).join(' · ');
+  // List price, which is not what a subscription is billed, so the number is
+  // kept out of the line itself and only says roughly what the turn was worth.
+  const title = cost ? `About $${cost.toFixed(cost < 0.01 ? 4 : 3)} at list price` : '';
+  return { text, title };
+}
+
 export function applyEvent(items, event) {
   if (!event || typeof event !== 'object') return items;
   switch (event.type) {
@@ -76,9 +113,7 @@ export function applyEvent(items, event) {
     case 'user':
       return fromToolResults(items, event);
     case 'result':
-      // A successful run ends by repeating its own last words, which are
-      // already in the transcript; only a failure has something to add.
-      return event.subtype === 'success' ? items : [...items, { kind: 'failed', text: event.result ?? 'The agent stopped.' }];
+      return fromResult(items, event);
     default:
       return items;
   }

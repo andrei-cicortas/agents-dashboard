@@ -150,6 +150,11 @@ Answers are shown as they were written — headings, lists, tables and code
 blocks, each with a **Copy** button. Only `http`, `https` and `mailto`
 addresses are ever clickable, and a link opens in your own browser.
 
+Under each answer is a line saying what the turn took — how long, and how many
+tokens went in and came back. Hovering it gives roughly what that is worth at
+list price, which is not what a subscription is billed but is the honest way to
+see the size of what you just asked for. Agent threads say the same.
+
 Chats are saved with the rest of the state, so they are still there after the
 window is closed, and each one carries on where it left off.
 

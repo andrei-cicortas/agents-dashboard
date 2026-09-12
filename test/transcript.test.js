@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyTranscript, applyEvent, toolLine } from '../shared/transcript.js';
+import { emptyTranscript, applyEvent, toolLine, turnLine } from '../shared/transcript.js';
 
 const assistant = (...content) => ({ type: 'assistant', message: { content } });
 
@@ -59,9 +59,42 @@ test('a run that ends badly says so', () => {
   assert.deepEqual(items, [{ kind: 'failed', text: 'Ran out of turns' }]);
 });
 
-test('a run that ends well adds nothing, because the prose is already there', () => {
-  const items = applyEvent(emptyTranscript(), { type: 'result', subtype: 'success', result: 'Here is what I found.' });
-  assert.deepEqual(items, []);
+test('a run that ends well adds what the turn took, not its words again', () => {
+  const items = applyEvent(emptyTranscript(), {
+    type: 'result',
+    subtype: 'success',
+    result: 'Here is what I found.',
+    duration_ms: 1693,
+    total_cost_usd: 0.0188,
+    usage: { input_tokens: 2, cache_read_input_tokens: 1374, cache_creation_input_tokens: 1781, output_tokens: 13 },
+  });
+  assert.deepEqual(items, [{ kind: 'done', ms: 1693, cost: 0.0188, read: 3157, wrote: 13 }]);
+});
+
+test('a run that ends with nothing to say about itself still ends', () => {
+  const [only] = applyEvent(emptyTranscript(), { type: 'result', subtype: 'success' });
+  assert.deepEqual(only, { kind: 'done', ms: null, cost: null, read: 0, wrote: 0 });
+});
+
+test('the turn line says how long it took and how much went through', () => {
+  assert.deepEqual(turnLine({ ms: 1693, cost: 0.0188, read: 3157, wrote: 13 }), {
+    text: '1.7s · 3.2k in · 13 out',
+    title: 'About $0.019 at list price',
+  });
+});
+
+test('a turn under a cent is worth more decimals than one over', () => {
+  assert.equal(turnLine({ ms: 100, cost: 0.0042 }).title, 'About $0.0042 at list price');
+});
+
+test('a long turn is counted in whole seconds', () => {
+  assert.equal(turnLine({ ms: 92400, read: 10, wrote: 10 }).text, '92s · 10 in · 10 out');
+});
+
+test('a turn that did not say how long it took only says what it used', () => {
+  const { text, title } = turnLine({ read: 5, wrote: 6 });
+  assert.equal(text, '5 in · 6 out');
+  assert.equal(title, '', 'nothing to say about a price nobody reported');
 });
 
 test('events we do not draw leave the transcript alone', () => {

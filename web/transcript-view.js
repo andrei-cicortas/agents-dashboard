@@ -6,6 +6,7 @@
 
 import { h } from './dom.js';
 import { richText } from './rich-text.js';
+import { turnLine } from '/shared/transcript.js';
 
 const TOOL_MARK = { running: '·', done: '✓', failed: '✕' };
 
@@ -16,6 +17,10 @@ export function drawItem(item) {
   }
   if (item.kind === 'thought') return h('div', { class: 'thought' }, 'Thought about it');
   if (item.kind === 'failed') return h('div', { class: 'failed-line' }, item.text);
+  if (item.kind === 'done') {
+    const { text, title } = turnLine(item);
+    return h('div', { class: 'turn-note', title }, text);
+  }
   return h('div', { class: `tool-line ${item.status}` },
     h('span', { class: 'tool-mark' }, TOOL_MARK[item.status] ?? '·'),
     h('span', { class: 'tool-verb' }, item.verb),
