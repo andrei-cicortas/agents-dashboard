@@ -104,6 +104,32 @@ Agents also run with the CLI's `--safe-mode`, so your own CLAUDE.md, skills,
 hooks and MCP servers are left out. An agent should behave the way its own
 instructions say, not the way your machine happens to be set up.
 
+## Chat
+
+The **Chat** tab is for the questions that come up while the agents work —
+what a flag does, how to word a commit message, whether an approach is
+sensible — so answering one does not mean leaving the window.
+
+It has no folder. It cannot read a file and cannot run a command; the only
+tools it has are web search and fetching a page, because half of what anyone
+asks depends on something newer than the model. There is nothing to set up:
+type the question and the chat is created on it, named after what you asked.
+
+- **+** next to Chats, or **New chat** in the **...** menu, clears the screen
+  for a new one. Nothing is created until you ask something, so the list never
+  fills with empty chats.
+- The pill beside the title picks the model: **Sonnet** for everyday questions,
+  **Opus** when it needs thinking about, **Haiku** when the answer is small.
+  Changing it carries on the same conversation.
+- Enter sends, Shift+Enter starts a new line, and **Stop** abandons an answer.
+
+Answers are shown as they were written — headings, lists, tables and code
+blocks, each with a **Copy** button. Only `http`, `https` and `mailto`
+addresses are ever clickable, and a link opens in your own browser.
+
+Chats are saved with the rest of the state, so they are still there after the
+window is closed, and each one carries on where it left off.
+
 ## Colour themes
 
 The moon button in the sidebar's account card switches between ten dark themes
@@ -150,7 +176,7 @@ Restart the dashboard (Settings → stop, then the shortcut).
 ## Where things are stored
 
 - State (workspaces, panels, notifications, panel arrangements, agents and
-  their threads):
+  their threads, chats):
   `%APPDATA%\agents-dashboard\state.json`
 - Server logs: `%APPDATA%\agents-dashboard\server.log` and `server-error.log`
 
@@ -185,7 +211,13 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
 - [ ] When Claude asks for permission, the dot turns orange and the bell says "needs your input".
 - [ ] The sidebar row changes to the conversation topic (the panel header keeps
       showing the folder, with the agent's coloured mark next to it).
-- [ ] The Agent and Chat tabs show their "coming soon" placeholder.
+- [ ] Chat → ask something → the answer arrives, formatted, and the chat is
+      named after the question.
+- [ ] Ask it to run a command → it says it has no way to.
+- [ ] Ask a follow-up → it remembers the first question.
+- [ ] Pick Opus, ask again → the answer still continues the same conversation.
+- [ ] Reload → the tab, the chat and its whole transcript come back.
+- [ ] Copy on a code block → the code is on the clipboard.
 - [ ] Split a panel right, then down → the three tile with no gaps.
 - [ ] Drag a line between two panels → both resize, and neither can be dragged
       away to nothing.

@@ -23,6 +23,7 @@ test('save then load round-trips the state and creates folders', () => {
     layouts: { 'C:\\Games\\my game': { panelId: 'p1' } },
     profiles: [{ id: 'a1', name: 'Lead finder', cwd: 'C:\\Games\\my game', instructions: '', tools: null, colour: '#f97362' }],
     threads: [{ id: 't1', profileId: 'a1', title: 'go', sessionId: 'abc', items: [], status: 'idle' }],
+    chats: [{ id: 'c1', title: 'What is a pty?', sessionId: 'def', items: [], status: 'idle', model: 'sonnet' }],
   };
   store.save(state);
   assert.deepEqual(store.load(), state);
@@ -60,7 +61,7 @@ function flakyFs(codes) {
   return fakeFs;
 }
 
-const sampleState = { projects: [], panels: [], notifications: [{ id: 'n1' }], layouts: {}, profiles: [], threads: [] };
+const sampleState = { projects: [], panels: [], notifications: [{ id: 'n1' }], layouts: {}, profiles: [], threads: [], chats: [] };
 
 test('save retries a busy rename and then succeeds', (t) => {
   const errors = t.mock.method(console, 'error', () => {});

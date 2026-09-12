@@ -15,6 +15,20 @@ import { listFolders as listFoldersOnDisk } from './folders.js';
 
 const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 
+// The Chat tab. No folder, no files, no commands: a conversation with Claude
+// for the questions that come up while the agents work, which would otherwise
+// mean leaving the window. It may look things up, because half of what anyone
+// asks depends on something newer than the model.
+export const CHAT_TOOLS = ['WebSearch', 'WebFetch'];
+export const CHAT_MODELS = ['sonnet', 'opus', 'haiku'];
+const DEFAULT_CHAT_MODEL = 'sonnet';
+const CHAT_INSTRUCTIONS = [
+  'You are the chat window of a desktop app, not an agent working in a codebase.',
+  'There are no files here to read and no commands to run, so answer from what you know',
+  'and look something up on the web only when the answer depends on it.',
+  'Keep answers short unless asked for more.',
+].join(' ');
+
 const isBrowser = (panel) => panel.kind === 'browser';
 
 function samePath(a, b) {
@@ -37,6 +51,9 @@ export function createDashboard({
   // Whoever is signed in to this PC; the sidebar shows it where a hosted app
   // would show an account.
   userName = os.userInfo().username,
+  // A chat belongs to no project, but the CLI still has to be started
+  // somewhere. Nothing of it is read: a chat has no tool that touches a disk.
+  chatCwd = os.homedir(),
 }) {
   let projects = [];
   let panels = [];
@@ -50,7 +67,10 @@ export function createDashboard({
   // dies with the server, so it is deliberately kept out of the state file.
   let profiles = [];
   let threads = [];
-  const runsByThread = new Map();
+  // Chat mode: conversations with nothing behind them but Claude itself.
+  let chats = [];
+  // Turns in flight, by the id of the thread or chat they belong to.
+  const runs = new Map();
 
   // Guards against a second folder-picker process spawning while one is
   // already open (each extra click otherwise stacks another hidden dialog).
@@ -74,6 +94,7 @@ export function createDashboard({
 
   const findProfile = (profileId) => profiles.find((profile) => profile.id === profileId);
   const findThread = (threadId) => threads.find((thread) => thread.id === threadId);
+  const findChat = (chatId) => chats.find((chat) => chat.id === chatId);
   // Enough colours to tell a rail of agents apart at a glance; past the end it
   // starts over rather than inventing something unreadable.
   const PROFILE_COLOURS = ['#f97362', '#5c8fff', '#22c55e', '#eab308', '#a855f7', '#06b6d4'];
@@ -113,6 +134,8 @@ export function createDashboard({
       layouts,
       profiles,
       threads,
+      chats,
+      chatModels: CHAT_MODELS,
       user: { name: userName },
       unread: unreadCount(notifications),
     };
@@ -133,6 +156,7 @@ export function createDashboard({
       profiles,
       // A run cannot survive the server, so nothing is saved as still working.
       threads: threads.map((thread) => ({ ...thread, status: thread.status === 'working' ? 'idle' : thread.status })),
+      chats: chats.map((chat) => ({ ...chat, status: chat.status === 'working' ? 'idle' : chat.status })),
     });
   }
 
@@ -197,6 +221,13 @@ export function createDashboard({
       // Whatever was in flight died with the last server; nothing is working now.
       status: thread.status === 'working' ? 'idle' : thread.status,
     }));
+    chats = (saved.chats ?? []).map((chat) => ({
+      ...chat,
+      items: chat.items ?? emptyTranscript(),
+      model: CHAT_MODELS.includes(chat.model) ? chat.model : DEFAULT_CHAT_MODEL,
+      at: chat.at ?? now().toISOString(),
+      status: chat.status === 'working' ? 'idle' : chat.status,
+    }));
     panels = saved.panels.map((panel) => ({
       ...panel,
       // Only a panel that was used has a conversation waiting for it; the rest
@@ -212,19 +243,23 @@ export function createDashboard({
     publish();
   }
 
-  // ---- Agent mode --------------------------------------------------------
+  // ---- One turn of a conversation ----------------------------------------
 
-  function runThread(thread, profile) {
+  // Shared by an agent's threads and by the Chat tab: both are a list of
+  // transcript items continued by a CLI session id, and differ only in where
+  // the CLI runs and what it is allowed to do. `find` looks the conversation
+  // up again on every event, because it may have been closed mid-answer.
+  function runTurn(conversation, { cwd, instructions, tools, model }, find) {
     const run = agentRunner.run({
-      cwd: profile.cwd,
-      prompt: thread.items.at(-1).text,
-      sessionId: thread.sessionId ?? null,
-      instructions: profile.instructions ?? '',
-      tools: profile.tools ?? null,
+      cwd,
+      prompt: conversation.items.at(-1).text,
+      sessionId: conversation.sessionId ?? null,
+      instructions,
+      tools,
+      model,
     }, {
       onEvent(event) {
-        // The thread may have been closed while the agent was still talking.
-        const live = findThread(thread.id);
+        const live = find(conversation.id);
         if (!live) return;
         // The first event of a run names the session, which is how the next
         // message continues this same conversation rather than starting one.
@@ -237,15 +272,41 @@ export function createDashboard({
         commit();
       },
       onDone({ ok, message }) {
-        runsByThread.delete(thread.id);
-        const live = findThread(thread.id);
+        runs.delete(conversation.id);
+        const live = find(conversation.id);
         if (!live) return;
         live.status = ok ? 'idle' : 'failed';
         if (!ok) live.items = applyEvent(live.items, { type: 'result', subtype: 'error', result: message });
         commit();
       },
     });
-    runsByThread.set(thread.id, run);
+    runs.set(conversation.id, run);
+  }
+
+  function stopRun(id) {
+    runs.get(id)?.cancel();
+    runs.delete(id);
+  }
+
+  // Puts a question to a chat and starts the answer. Says whether it did, so a
+  // chat created with nothing to ask is still published.
+  function askChat(chat, text) {
+    const prompt = String(text ?? '').trim();
+    // One turn at a time, for the same reason a thread has one: a second CLI on
+    // the same session would write over the first.
+    if (!prompt || chat.status === 'working' || !agentRunner) return false;
+    if (!chat.items.length) chat.title = threadTitle(prompt);
+    chat.items = applyEvent(chat.items, { type: 'prompt', text: prompt });
+    chat.status = 'working';
+    chat.at = now().toISOString();
+    commit();
+    runTurn(chat, {
+      cwd: chatCwd,
+      instructions: CHAT_INSTRUCTIONS,
+      tools: CHAT_TOOLS,
+      model: chat.model,
+    }, findChat);
+    return true;
   }
 
   const handlers = {
@@ -284,10 +345,7 @@ export function createDashboard({
 
     'profile:remove'({ profileId }) {
       if (!findProfile(profileId)) return;
-      for (const thread of threads.filter((one) => one.profileId === profileId)) {
-        runsByThread.get(thread.id)?.cancel();
-        runsByThread.delete(thread.id);
-      }
+      for (const thread of threads.filter((one) => one.profileId === profileId)) stopRun(thread.id);
       profiles = profiles.filter((profile) => profile.id !== profileId);
       threads = threads.filter((thread) => thread.profileId !== profileId);
       commit();
@@ -307,8 +365,7 @@ export function createDashboard({
     },
 
     'thread:remove'({ threadId }) {
-      runsByThread.get(threadId)?.cancel();
-      runsByThread.delete(threadId);
+      stopRun(threadId);
       threads = threads.filter((thread) => thread.id !== threadId);
       commit();
     },
@@ -325,15 +382,73 @@ export function createDashboard({
       thread.items = applyEvent(thread.items, { type: 'prompt', text: prompt });
       thread.status = 'working';
       commit();
-      runThread(thread, profile);
+      runTurn(thread, {
+        cwd: profile.cwd,
+        instructions: profile.instructions ?? '',
+        tools: profile.tools ?? null,
+      }, findThread);
     },
 
     'thread:cancel'({ threadId }) {
       const thread = findThread(threadId);
       if (!thread) return;
-      runsByThread.get(threadId)?.cancel();
-      runsByThread.delete(threadId);
+      stopRun(threadId);
       thread.status = 'idle';
+      commit();
+    },
+
+    // ---- Chat mode -------------------------------------------------------
+
+    // Given something to ask, the new chat starts on it. Nobody wants to name
+    // a conversation before having it, so the first question does that instead.
+    'chat:create'({ model: wanted, text } = {}) {
+      const chat = {
+        id: newId(),
+        title: 'New chat',
+        sessionId: null,
+        items: emptyTranscript(),
+        status: 'idle',
+        model: CHAT_MODELS.includes(wanted) ? wanted : DEFAULT_CHAT_MODEL,
+        at: now().toISOString(),
+      };
+      chats = [...chats, chat];
+      if (!askChat(chat, text)) commit();
+    },
+
+    'chat:send'({ chatId, text }) {
+      const chat = findChat(chatId);
+      if (chat) askChat(chat, text);
+    },
+
+    'chat:cancel'({ chatId }) {
+      const chat = findChat(chatId);
+      if (!chat) return;
+      stopRun(chatId);
+      chat.status = 'idle';
+      commit();
+    },
+
+    'chat:remove'({ chatId }) {
+      if (!findChat(chatId)) return;
+      stopRun(chatId);
+      chats = chats.filter((chat) => chat.id !== chatId);
+      commit();
+    },
+
+    'chat:rename'({ chatId, title }) {
+      const chat = findChat(chatId);
+      const trimmed = String(title ?? '').trim();
+      if (!chat || !trimmed) return;
+      chat.title = threadTitle(trimmed);
+      commit();
+    },
+
+    // Which model answers. Changing it mid-conversation is allowed: the CLI
+    // resumes the same session under the new one, so the chat carries on.
+    'chat:model'({ chatId, model: wanted }) {
+      const chat = findChat(chatId);
+      if (!chat || !CHAT_MODELS.includes(wanted)) return;
+      chat.model = wanted;
       commit();
     },
 

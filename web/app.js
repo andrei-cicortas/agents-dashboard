@@ -6,6 +6,8 @@ import { createSidebar } from './sidebar.js';
 import { createAccount } from './account.js';
 import { createAgentRail } from './agent-rail.js';
 import { createAgentView } from './agent-view.js';
+import { createChatRail } from './chat-rail.js';
+import { createChatView } from './chat-view.js';
 import { createBell } from './bell.js';
 import { createCanvas } from './canvas.js';
 import { isActive, sameFolder } from '/shared/status.js';
@@ -32,7 +34,7 @@ const prefs = loadPrefs();
 
 const model = {
   state: null,
-  tab: 'code',
+  tab: prefs.tab ?? 'code',
   focusedPanelId: null,
   maximizedPanelId: null,
   collapsedProjects: new Set(prefs.collapsedProjects ?? []),
@@ -41,6 +43,11 @@ const model = {
   // Agent tab: the agent being looked at, and which of its threads.
   selectedProfileId: prefs.selectedProfileId ?? null,
   selectedThreadId: null,
+  // Chat tab: the conversation on screen, and the model the next one starts
+  // on. A chat remembers its own model; this is only for before there is one
+  // to remember it.
+  selectedChatId: prefs.selectedChatId ?? null,
+  nextChatModel: prefs.nextChatModel ?? 'sonnet',
   theme: themeById(prefs.theme ?? DEFAULT_THEME_ID),
   // Layouts per workspace path. Kept here rather than read straight off the
   // server state, so a broadcast sent for some other reason cannot undo a
@@ -53,10 +60,13 @@ const model = {
 function savePrefs() {
   try {
     localStorage.setItem(PREFS_KEY, JSON.stringify({
+      tab: model.tab,
       collapsedProjects: [...model.collapsedProjects],
       sidebarCollapsed: model.sidebarCollapsed,
       selectedWorkspace: model.selectedWorkspace,
       selectedProfileId: model.selectedProfileId,
+      selectedChatId: model.selectedChatId,
+      nextChatModel: model.nextChatModel,
       theme: model.theme.id,
     }));
   } catch {
@@ -75,6 +85,9 @@ function layoutOf(path) {
 
 // Layouts we have sent and are waiting to see again, as path -> JSON.
 const inFlight = {};
+
+// Set while a chat asked for by its first question has not come back yet.
+let pendingChat = false;
 
 function sendLayout(path, tree) {
   const json = JSON.stringify(tree ?? null);
@@ -118,6 +131,7 @@ const actions = {
     model.tab = tab;
     savePrefs();
     render();
+    if (tab === 'chat') chatView.focus();
   },
 
   // ---- Agent tab --------------------------------------------------------
@@ -174,6 +188,67 @@ const actions = {
 
   cancelThread(threadId) {
     api.send('thread:cancel', { threadId });
+  },
+
+  // ---- Chat tab ---------------------------------------------------------
+
+  // Sending with nothing open starts a chat on that very question, so nothing
+  // has to be created or named before asking something.
+  sendChat(text) {
+    if (model.selectedChatId) {
+      api.send('chat:send', { chatId: model.selectedChatId, text });
+      return;
+    }
+    // The chat does not exist yet, so the server names its id. Remember that
+    // one is on the way, and open it as soon as it comes back.
+    pendingChat = true;
+    api.send('chat:create', { text, model: model.nextChatModel });
+  },
+
+  // Nothing is created until something is asked, so an empty chat can never
+  // pile up in the list.
+  newChat() {
+    model.selectedChatId = null;
+    savePrefs();
+    render();
+    chatView.focus();
+  },
+
+  selectChat(chatId) {
+    model.selectedChatId = chatId;
+    savePrefs();
+    render();
+  },
+
+  removeChat(chatId) {
+    const chat = model.state?.chats?.find((one) => one.id === chatId);
+    if (!chat || !confirm(`Delete "${chat.title}"?`)) return;
+    if (model.selectedChatId === chatId) model.selectedChatId = null;
+    api.send('chat:remove', { chatId });
+  },
+
+  renameChat(chatId) {
+    const chat = model.state?.chats?.find((one) => one.id === chatId);
+    if (!chat) return;
+    const title = prompt('Name for this chat', chat.title);
+    if (title && title.trim()) api.send('chat:rename', { chatId, title });
+  },
+
+  cancelChat(chatId) {
+    api.send('chat:cancel', { chatId });
+  },
+
+  setChatModel(chatId, wanted) {
+    model.nextChatModel = wanted;
+    savePrefs();
+    api.send('chat:model', { chatId, model: wanted });
+  },
+
+  // Chosen before there is a chat to put it on; the next one starts with it.
+  setNextChatModel(wanted) {
+    model.nextChatModel = wanted;
+    savePrefs();
+    render();
   },
 
   toggleSidebar() {
@@ -338,6 +413,8 @@ const sidebar = createSidebar(byId('workspace-rail'), actions);
 const account = createAccount(byId('account'), actions);
 const agentRail = createAgentRail(byId('agent-rail'), actions);
 const agentView = createAgentView(byId('agent-view'), actions);
+const chatRail = createChatRail(byId('chat-rail'), actions);
+const chatView = createChatView(byId('chat-view'), actions);
 const canvas = createCanvas(byId('canvas'), byId('empty'), actions, model.theme);
 
 // The stylesheet ships the default theme, so the page is already dressed
@@ -366,9 +443,9 @@ function render() {
   byId('agent-view').hidden = model.tab !== 'agent';
   byId('chat-view').hidden = model.tab !== 'chat';
   // The sidebar shows whichever list belongs to the tab in front.
-  const agentTab = model.tab === 'agent';
-  byId('workspace-rail').hidden = agentTab;
-  byId('agent-rail').hidden = !agentTab;
+  byId('workspace-rail').hidden = model.tab !== 'code';
+  byId('agent-rail').hidden = model.tab !== 'agent';
+  byId('chat-rail').hidden = model.tab !== 'chat';
 
   const path = currentWorkspace();
   model.selectedWorkspace = path;
@@ -387,12 +464,21 @@ function render() {
     model.selectedProfileId = profiles[0]?.id ?? null;
   }
 
+  // A chat deleted here or in another window is no longer the one open. Only
+  // once there is state to check against: before the first one arrives, the
+  // chat remembered from last time has not been contradicted by anything.
+  if (model.state && model.selectedChatId && !(model.state.chats ?? []).some((one) => one.id === model.selectedChatId)) {
+    model.selectedChatId = null;
+  }
+
   topbar.render(model);
   bell.render(model);
   sidebar.render(model);
   account.render(model);
   agentRail.render(model);
   agentView.render(model);
+  chatRail.render(model);
+  chatView.render(model);
   canvas.render(model);
   syncLayout(path);
 }
@@ -403,6 +489,12 @@ const api = connect({
   onMessage(message) {
     if (message.type === 'state') {
       model.state = message;
+      // The chat we asked the server to start: open it, now that it has an id.
+      if (pendingChat && (message.chats ?? []).length) {
+        model.selectedChatId = message.chats.at(-1).id;
+        pendingChat = false;
+        savePrefs();
+      }
       const merged = mergeLayouts(message.layouts ?? {}, inFlight);
       model.layouts = merged.layouts;
       for (const path of merged.acknowledged) delete inFlight[path];

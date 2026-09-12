@@ -8,15 +8,13 @@
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
-import { richText } from './rich-text.js';
+import { createTranscript } from './transcript-view.js';
 
 const STATUS = {
   idle: { label: 'Ready', tone: 'ready' },
   working: { label: 'Working', tone: 'working' },
   failed: { label: 'Needs you', tone: 'failed' },
 };
-
-const TOOL_MARK = { running: '·', done: '✓', failed: '✕' };
 
 export function createAgentView(root, actions) {
   const face = h('span', { class: 'agent-face large' });
@@ -25,7 +23,7 @@ export function createAgentView(root, actions) {
   const statusPill = h('span', { class: 'status-pill' });
   const gear = h('button', { class: 'icon-button', title: 'This agent' });
   const tabs = h('div', { class: 'thread-tabs' });
-  const transcript = h('div', { class: 'transcript' });
+  const transcript = createTranscript({ empty: 'Nothing yet. Ask it something.' });
 
   const composer = h('textarea', {
     class: 'composer',
@@ -43,7 +41,7 @@ export function createAgentView(root, actions) {
       statusPill,
       gear),
     tabs,
-    transcript,
+    transcript.element,
     composerRow,
     footNote);
 
@@ -56,21 +54,13 @@ export function createAgentView(root, actions) {
   // What the view is looking at, so handlers do not close over a stale render.
   let profile = null;
   let thread = null;
-  // Kept so a rerender does not fight with someone scrolled up reading.
-  let stickToBottom = true;
-  let shownKey = '';
-
-  transcript.addEventListener('scroll', () => {
-    const room = transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight;
-    stickToBottom = room < 40;
-  });
 
   function send() {
     const text = composer.value.trim();
     if (!thread || !text || thread.status === 'working') return;
     composer.value = '';
     composer.style.height = 'auto';
-    stickToBottom = true;
+    transcript.follow();
     actions.sendToThread(thread.id, text);
   }
 
@@ -96,20 +86,6 @@ export function createAgentView(root, actions) {
       { label: 'Remove this agent', onSelect: () => actions.removeProfile(profile.id) },
     ]);
   });
-
-  function drawItem(item) {
-    if (item.kind === 'said') {
-      return item.by === 'you'
-        ? h('div', { class: 'bubble' }, item.text)
-        : richText(item.text);
-    }
-    if (item.kind === 'thought') return h('div', { class: 'thought' }, 'Thought about it');
-    if (item.kind === 'failed') return h('div', { class: 'failed-line' }, item.text);
-    return h('div', { class: `tool-line ${item.status}` },
-      h('span', { class: 'tool-mark' }, TOOL_MARK[item.status] ?? '·'),
-      h('span', { class: 'tool-verb' }, item.verb),
-      h('span', { class: 'tool-detail' }, item.detail));
-  }
 
   function drawTabs(threads) {
     const buttons = threads.map((one) => {
@@ -160,24 +136,15 @@ export function createAgentView(root, actions) {
       drawTabs(mine);
 
       if (!thread) {
-        transcript.replaceChildren(h('div', { class: 'empty-text' }, 'No thread open. Click + above to start one.'));
+        transcript.element.replaceChildren(h('div', { class: 'empty-text' }, 'No thread open. Click + above to start one.'));
+        transcript.reset();
         composerRow.hidden = true;
         footNote.textContent = profile.cwd;
-        shownKey = '';
         return;
       }
       composerRow.hidden = false;
 
-      // Redrawing only when something actually changed keeps a half-typed
-      // message and the scroll position where they were.
-      const key = `${thread.id}|${thread.items.length}|${thread.status}|${JSON.stringify(thread.items.at(-1) ?? null)}`;
-      if (key !== shownKey) {
-        shownKey = key;
-        transcript.replaceChildren(...(thread.items.length
-          ? thread.items.map(drawItem)
-          : [h('div', { class: 'empty-text' }, 'Nothing yet. Ask it something.')]));
-        if (stickToBottom) transcript.scrollTop = transcript.scrollHeight;
-      }
+      transcript.show(thread);
 
       const working = thread.status === 'working';
       composer.disabled = working;
