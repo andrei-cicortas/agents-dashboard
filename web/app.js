@@ -3,6 +3,7 @@
 import { connect } from './api.js';
 import { createTopbar } from './topbar.js';
 import { createSidebar } from './sidebar.js';
+import { deliverFolders } from './folder-picker.js';
 import { createAccount } from './account.js';
 import { createAgentRail } from './agent-rail.js';
 import { createAgentView } from './agent-view.js';
@@ -155,8 +156,8 @@ const actions = {
     syncFocus();
   },
 
-  createProfile({ name, cwd, instructions }) {
-    api.send('profile:create', { name, cwd, instructions });
+  createProfile({ name, cwd, instructions, model }) {
+    api.send('profile:create', { name, cwd, instructions, model });
   },
 
   removeProfile(profileId) {
@@ -178,6 +179,10 @@ const actions = {
   setProfileTools(profileId, allowWrite) {
     if (allowWrite && !confirm('Let this agent run commands and change files in its folder?')) return;
     api.send('profile:update', { profileId, tools: allowWrite ? WRITE_TOOLS : [] });
+  },
+
+  setProfileModel(profileId, model) {
+    api.send('profile:update', { profileId, model });
   },
 
   createThread(profileId) {
@@ -549,7 +554,7 @@ const api = connect({
     } else if (message.type === 'panel:replay') {
       canvas.replay(message.panelId, message.data);
     } else if (message.type === 'folders:listed') {
-      sidebar.folderList(message);
+      deliverFolders(message);
     } else if (message.type === 'project:add-failed') {
       sidebar.addFailed(message.message);
     } else if (message.type === 'server:stopped') {

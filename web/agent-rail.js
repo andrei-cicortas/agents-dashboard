@@ -5,6 +5,9 @@
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
+import { createFolderPicker } from './folder-picker.js';
+
+const MODEL_NAMES = { opus: 'Answers with Opus', sonnet: 'Answers with Sonnet', haiku: 'Answers with Haiku' };
 
 // What the rail says an agent is up to, from its threads.
 function standing(profile, threads) {
@@ -23,26 +26,51 @@ export function createAgentRail(root, actions) {
   form.hidden = true;
 
   const nameInput = h('input', { class: 'field', type: 'text', placeholder: 'Name, e.g. Release notes writer' });
-  const folderSelect = h('select', { class: 'field' });
+  // Any folder on the disk, not only one already added as a workspace: an
+  // agent answering about a folder is not the same as sitting a terminal in it.
+  const folderInput = h('input', { class: 'field', type: 'text', spellcheck: 'false', placeholder: 'Folder it works in' });
+  const browseButton = h('button', { class: 'button', onClick: () => picker.toggle() }, 'Browse…');
+  const picker = createFolderPicker({
+    actions,
+    chooseLabel: 'Use this folder',
+    onChoose: (folder) => {
+      folderInput.value = folder;
+      picker.close();
+    },
+  });
+  const modelSelect = h('select', { class: 'field', title: 'Which model it answers with' });
   const instructionsInput = h('textarea', { class: 'field', rows: '3', placeholder: 'What should it always do? (optional)' });
+  const formMessage = h('div', { class: 'add-message' });
+  formMessage.hidden = true;
 
   function closeForm() {
     form.hidden = true;
+    picker.close();
     nameInput.value = '';
     instructionsInput.value = '';
+    formMessage.hidden = true;
   }
 
   function submit() {
     const name = nameInput.value.trim();
     if (!name) return nameInput.focus();
-    actions.createProfile({ name, cwd: folderSelect.value, instructions: instructionsInput.value });
+    const cwd = folderInput.value.trim();
+    if (!cwd) {
+      formMessage.textContent = 'Give it a folder to work in.';
+      formMessage.hidden = false;
+      return picker.open();
+    }
+    actions.createProfile({ name, cwd, instructions: instructionsInput.value, model: modelSelect.value });
     closeForm();
   }
 
   form.replaceChildren(
     nameInput,
-    folderSelect,
+    h('div', { class: 'folder-bar' }, folderInput, browseButton),
+    picker.element,
+    modelSelect,
     instructionsInput,
+    formMessage,
     h('div', { class: 'form-actions' },
       h('button', { class: 'button', onClick: closeForm }, 'Cancel'),
       h('button', { class: 'button primary', onClick: submit }, 'Add agent')),
@@ -57,7 +85,8 @@ export function createAgentRail(root, actions) {
     title: 'Add an agent',
     onClick: () => {
       form.hidden = !form.hidden;
-      if (!form.hidden) nameInput.focus();
+      if (form.hidden) closeForm();
+      else nameInput.focus();
     },
   }, icon('plus'));
 
@@ -104,12 +133,11 @@ export function createAgentRail(root, actions) {
       if (!state) return;
       const profiles = state.profiles ?? [];
 
-      const folders = state.projects ?? [];
-      const chosen = folderSelect.value;
-      folderSelect.replaceChildren(...folders.map((project) => h('option', { value: project.path }, project.name)));
-      if (folders.some((project) => project.path === chosen)) folderSelect.value = chosen;
-      addButton.disabled = folders.length === 0;
-      addButton.title = folders.length ? 'Add an agent' : 'Add a project folder first';
+      const models = state.chatModels ?? [];
+      const drawn = [...modelSelect.options].map((option) => option.value).join(',');
+      if (drawn !== models.join(',')) {
+        modelSelect.replaceChildren(...models.map((id) => h('option', { value: id }, MODEL_NAMES[id] ?? id)));
+      }
 
       const selected = profiles.find((profile) => profile.id === model.selectedProfileId);
       const rest = profiles.filter((profile) => profile !== selected);
@@ -117,9 +145,7 @@ export function createAgentRail(root, actions) {
       if (selected) content.push(card(selected, model));
       content.push(...rest.map((profile) => row(profile, model)));
       if (!profiles.length) {
-        content.push(h('div', { class: 'sidebar-empty' }, folders.length
-          ? 'No agents yet. Click + to name one.'
-          : 'Add a project folder first, on the Code tab.'));
+        content.push(h('div', { class: 'sidebar-empty' }, 'No agents yet. Click + to name one.'));
       }
       list.replaceChildren(...content);
     },

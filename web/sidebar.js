@@ -84,7 +84,11 @@ export function createSidebar(root, actions) {
     return h('div', { class: 'project' }, row, open && panels.length ? panels.map((panel) => agentRow(panel, model)) : []);
   }
 
-  const picker = createFolderPicker(actions);
+  const picker = createFolderPicker({
+    actions,
+    onChoose: (folder) => actions.addProject(folder),
+    windowsDialog: true,
+  });
 
   const addButton = h('button', {
     class: 'icon-button',
@@ -101,11 +105,6 @@ export function createSidebar(root, actions) {
     // Shown under the browser when the server would not take the path.
     addFailed(message) {
       picker.failed(message);
-    },
-
-    // A reply to folders:list, handed straight to the browser.
-    folderList(payload) {
-      picker.show(payload);
     },
 
     render(model) {

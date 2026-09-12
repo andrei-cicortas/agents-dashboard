@@ -154,6 +154,41 @@ test('a thread that failed says so, and can be used again', async () => {
   assert.equal(t.state().threads[0].status, 'working');
 });
 
+test('an agent answers with the model it was given', async () => {
+  const t = setup();
+  await t.send({ type: 'profile:create', name: 'Reviewer', cwd: GAME, model: 'opus' });
+  const profile = t.state().profiles[0];
+  assert.equal(profile.model, 'opus');
+
+  await t.send({ type: 'thread:create', profileId: profile.id });
+  await t.send({ type: 'thread:send', threadId: t.state().threads[0].id, text: 'go' });
+  assert.equal(t.runner.last().options.model, 'opus');
+});
+
+test('an agent given no model, or one nobody offers, answers with the everyday one', async () => {
+  const t = setup();
+  await t.send({ type: 'profile:create', name: 'A', cwd: GAME });
+  await t.send({ type: 'profile:create', name: 'B', cwd: GAME, model: 'gpt-4' });
+  assert.deepEqual(t.state().profiles.map((one) => one.model), ['sonnet', 'sonnet']);
+});
+
+test('the model of an agent can be changed afterwards', async () => {
+  const t = setup();
+  const profile = await withProfile(t);
+  await t.send({ type: 'profile:update', profileId: profile.id, model: 'haiku' });
+  assert.equal(t.state().profiles[0].model, 'haiku');
+  await t.send({ type: 'profile:update', profileId: profile.id, model: 'nonsense' });
+  assert.equal(t.state().profiles[0].model, 'haiku', 'a model nobody offers is refused');
+});
+
+test('an agent saved before models existed comes back on the everyday one', () => {
+  const t = setup({
+    initial: { ...emptyState(), profiles: [{ id: 'a1', name: 'Old', cwd: GAME, instructions: '', tools: null }] },
+  });
+  t.dashboard.start();
+  assert.equal(t.state().profiles[0].model, 'sonnet');
+});
+
 test('a thread that finishes while you are on another tab rings the bell', async () => {
   const t = setup();
   const { threadId } = await withThread(t);

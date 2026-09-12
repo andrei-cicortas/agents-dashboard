@@ -11,6 +11,8 @@ import { openMenu } from './menu.js';
 import { createTranscript } from './transcript-view.js';
 import { createComposer } from './composer.js';
 
+const MODEL_NAMES = { opus: 'Opus', sonnet: 'Sonnet', haiku: 'Haiku' };
+
 const STATUS = {
   idle: { label: 'Ready', tone: 'ready' },
   working: { label: 'Working', tone: 'working' },
@@ -22,6 +24,7 @@ export function createAgentView(root, actions) {
   const title = h('span', { class: 'agent-title' });
   const powered = h('span', { class: 'agent-powered' }, 'Powered by Claude Code');
   const statusPill = h('span', { class: 'status-pill' });
+  const modelSelect = h('select', { class: 'model-select', title: 'Which model it answers with' });
   const gear = h('button', { class: 'icon-button', title: 'This agent' });
   const tabs = h('div', { class: 'thread-tabs' });
   const transcript = createTranscript({ empty: 'Nothing yet. Ask it something.' });
@@ -40,6 +43,7 @@ export function createAgentView(root, actions) {
     h('div', { class: 'agent-head' },
       face,
       h('div', { class: 'agent-head-text' }, title, powered),
+      modelSelect,
       statusPill,
       gear),
     tabs,
@@ -56,6 +60,10 @@ export function createAgentView(root, actions) {
   // What the view is looking at, so handlers do not close over a stale render.
   let profile = null;
   let thread = null;
+
+  modelSelect.addEventListener('change', () => {
+    if (profile) actions.setProfileModel(profile.id, modelSelect.value);
+  });
 
   gear.replaceChildren(icon('settings', { size: 15 }));
   gear.addEventListener('click', () => {
@@ -110,6 +118,13 @@ export function createAgentView(root, actions) {
       powered.textContent = profile.tools
         ? 'Powered by Claude Code · may change files'
         : 'Powered by Claude Code · reads only';
+
+      const models = state.chatModels ?? [];
+      const drawn = [...modelSelect.options].map((option) => option.value).join(',');
+      if (drawn !== models.join(',')) {
+        modelSelect.replaceChildren(...models.map((id) => h('option', { value: id }, MODEL_NAMES[id] ?? id)));
+      }
+      if (profile.model) modelSelect.value = profile.model;
 
       const status = STATUS[thread?.status ?? 'idle'] ?? STATUS.idle;
       statusPill.className = `status-pill ${status.tone}`;

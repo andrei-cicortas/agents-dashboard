@@ -20,6 +20,8 @@ const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 // mean leaving the window. It may look things up, because half of what anyone
 // asks depends on something newer than the model.
 export const CHAT_TOOLS = ['WebSearch', 'WebFetch'];
+// The models anything here can be asked to answer with — a chat, or a named
+// agent. Sent to the CLI as its --model, which takes these short names.
 export const CHAT_MODELS = ['sonnet', 'opus', 'haiku'];
 const DEFAULT_CHAT_MODEL = 'sonnet';
 const CHAT_INSTRUCTIONS = [
@@ -230,7 +232,12 @@ export function createDashboard({
     projects = saved.projects;
     notifications = migrate(saved.notifications);
     layouts = saved.layouts ?? {};
-    profiles = saved.profiles ?? [];
+    // An agent saved before it could be given a model answers with the
+    // everyday one, the same as a new one would.
+    profiles = (saved.profiles ?? []).map((profile) => ({
+      ...profile,
+      model: CHAT_MODELS.includes(profile.model) ? profile.model : DEFAULT_CHAT_MODEL,
+    }));
     threads = (saved.threads ?? []).map((thread) => ({
       ...thread,
       items: thread.items ?? emptyTranscript(),
@@ -358,7 +365,7 @@ export function createDashboard({
       }
     },
 
-    'profile:create'({ name, cwd, instructions, tools }) {
+    'profile:create'({ name, cwd, instructions, tools, model: wanted }) {
       const trimmed = String(name ?? '').trim();
       if (!trimmed) return;
       profiles.push({
@@ -367,12 +374,13 @@ export function createDashboard({
         cwd: cwd ?? '',
         instructions: String(instructions ?? '').trim(),
         tools: Array.isArray(tools) && tools.length ? tools : null,
+        model: CHAT_MODELS.includes(wanted) ? wanted : DEFAULT_CHAT_MODEL,
         colour: PROFILE_COLOURS[profiles.length % PROFILE_COLOURS.length],
       });
       commit();
     },
 
-    'profile:update'({ profileId, name, cwd, instructions, tools }) {
+    'profile:update'({ profileId, name, cwd, instructions, tools, model: wanted }) {
       const profile = findProfile(profileId);
       if (!profile) return;
       const trimmed = String(name ?? '').trim();
@@ -380,6 +388,7 @@ export function createDashboard({
       if (cwd !== undefined) profile.cwd = cwd;
       if (instructions !== undefined) profile.instructions = String(instructions).trim();
       if (tools !== undefined) profile.tools = Array.isArray(tools) && tools.length ? tools : null;
+      if (CHAT_MODELS.includes(wanted)) profile.model = wanted;
       commit();
     },
 
@@ -427,6 +436,7 @@ export function createDashboard({
         cwd: profile.cwd,
         instructions: profile.instructions ?? '',
         tools: profile.tools ?? null,
+        model: profile.model ?? DEFAULT_CHAT_MODEL,
       }, findThread);
     },
 

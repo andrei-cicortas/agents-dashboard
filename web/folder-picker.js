@@ -1,15 +1,26 @@
-// Choosing a project folder, inside the app.
+// Choosing a folder, inside the app.
 //
 // Windows' own Browse For Folder dialog is a cramped tree with no address bar,
 // so reaching something like C:\Claude\Spider Tag means unfolding This PC, the
 // drive, and every level below it — and it opens as a separate window that can
-// end up behind the app. This browses the disk in the sidebar instead: it opens
-// on the drives, walks down with a click, and takes a pasted path.
+// end up behind the app. This browses the disk in place instead: it opens on
+// the drives, walks down with a click, and takes a pasted path.
+//
+// Two places need one — adding a workspace, and giving a named agent a folder
+// to work in — and the answer comes back from the server as a broadcast rather
+// than as a return value, so the picker that asked last is the one told.
 
 import { h } from './dom.js';
 import { icon } from './icons.js';
 
-export function createFolderPicker(actions) {
+let asking = null;
+
+// Routed here by app.js when a folders:list reply arrives.
+export function deliverFolders(payload) {
+  asking?.show(payload);
+}
+
+export function createFolderPicker({ actions, onChoose, chooseLabel = 'Add this folder', windowsDialog = false }) {
   // Where the browser is looking. null means the list of drives.
   let here = null;
   let parent = null;
@@ -25,7 +36,7 @@ export function createFolderPicker(actions) {
       const typed = pathInput.value.trim();
       // Enter on a path walks into it; on the folder you are already in, takes it.
       if (typed && typed !== here) actions.listFolders(typed);
-      else if (here) actions.addProject(here);
+      else if (here) onChoose(here);
     },
   });
 
@@ -40,40 +51,45 @@ export function createFolderPicker(actions) {
   const message = h('div', { class: 'add-message' });
   message.hidden = true;
 
-  const addButton = h('button', { class: 'button primary', onClick: () => here && actions.addProject(here) }, 'Add this folder');
+  const chooseButton = h('button', { class: 'button primary', onClick: () => here && onChoose(here) }, chooseLabel);
 
   const element = h('div', { class: 'add-folder' },
     h('div', { class: 'folder-bar' }, upButton, pathInput),
     list,
     message,
     h('div', { class: 'form-actions' },
-      h('button', { class: 'button', title: 'Use the Windows dialog instead', onClick: () => actions.addProject() }, 'Windows…'),
-      addButton));
+      windowsDialog
+        ? h('button', { class: 'button', title: 'Use the Windows dialog instead', onClick: () => actions.addProject() }, 'Windows…')
+        : h('button', { class: 'button', onClick: () => close() }, 'Cancel'),
+      chooseButton));
   element.hidden = true;
 
   function close() {
     element.hidden = true;
     message.hidden = true;
+    if (asking === self) asking = null;
   }
 
   function open() {
     element.hidden = false;
     message.hidden = true;
+    asking = self;
     actions.listFolders(here ?? '');
     pathInput.focus();
   }
 
-  return {
+  const self = {
     element,
 
+    open,
+    close,
     toggle() {
       if (element.hidden) open();
       else close();
     },
 
-    close,
     isOpen: () => !element.hidden,
-    // The folder currently being browsed, so the sidebar can tell when the one
+    // The folder currently being browsed, so a caller can tell when the one
     // that was just added is the one on screen.
     current: () => here,
 
@@ -89,8 +105,8 @@ export function createFolderPicker(actions) {
       parent = above;
       if (document.activeElement !== pathInput || pathInput.value.trim() !== at) pathInput.value = at ?? '';
       upButton.disabled = !at;
-      addButton.disabled = !at;
-      addButton.title = at ? `Add ${at}` : 'Go into a folder first';
+      chooseButton.disabled = !at;
+      chooseButton.title = at ? `${chooseLabel}: ${at}` : 'Go into a folder first';
       list.replaceChildren(...entries.map((entry) => h('button', {
         class: 'folder-row',
         title: entry.path,
@@ -107,4 +123,6 @@ export function createFolderPicker(actions) {
       message.hidden = false;
     },
   };
+
+  return self;
 }

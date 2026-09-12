@@ -98,8 +98,12 @@ The **Agent** tab is the other half of the app. Where the Code tab gives you a
 terminal to sit at, an agent answers on its own: you name it, give it a folder
 and standing instructions, and then hold conversations with it.
 
-- **+** next to Agents names one. The instructions are appended to its system
-  prompt, so they apply to everything it is ever asked.
+- **+** next to Agents names one. Its folder is any folder on the disk —
+  **Browse…** walks there, or paste the path — so an agent needs no workspace
+  on the Code tab first. The instructions are appended to its system prompt, so
+  they apply to everything it is ever asked.
+- The pill by its name picks the model, the same three the Chat tab offers, and
+  it can be changed later.
 - Each agent keeps **threads** — separate conversations, shown as tabs. A
   thread remembers its session, so a later message continues where it left off.
 - The transcript shows a line per thing: what you asked, what it did (each tool
@@ -270,7 +274,8 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
       Reload fetches it again.
 - [ ] Close the window and open it again → the web pane comes back on the same
       address.
-- [ ] Agent tab → **+** → name an agent and pick a folder → it appears in the rail.
+- [ ] Agent tab → **+** → name an agent, Browse… to a folder it has never seen,
+      pick Haiku → it appears in the rail and its header says Haiku.
 - [ ] Ask it something → the status says Working, then Ready, and the answer
       appears with a line per tool it used.
 - [ ] Ask it to run a shell command → it says it has no tool for that.
