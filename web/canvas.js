@@ -183,6 +183,10 @@ export function createCanvas(root, emptyElement, actions, initialTheme) {
       views.get(panelId)?.focusTerminal();
     },
 
+    find(panelId) {
+      views.get(panelId)?.openFind();
+    },
+
     // The longer side of a panel is the natural one to split, the way a tiling
     // window manager does it.
     splitDirection(panelId) {

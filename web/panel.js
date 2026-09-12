@@ -2,6 +2,7 @@
 
 import { Terminal } from '/vendor/xterm/lib/xterm.mjs';
 import { FitAddon } from '/vendor/addon-fit/lib/addon-fit.mjs';
+import { SearchAddon } from '/vendor/addon-search/lib/addon-search.mjs';
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
@@ -9,6 +10,16 @@ import { panelLabel } from '/shared/labels.js';
 import { dotClass } from '/shared/status.js';
 import { terminalTheme } from '/shared/themes.js';
 import { agentColour, agentInitial } from './agent-mark.js';
+import { matchLabel } from '/shared/find.js';
+
+// A found word is painted over the terminal's own colours, so it has to read
+// on every theme rather than borrow one.
+const FIND_DECORATIONS = {
+  matchBackground: '#4b5563',
+  matchOverviewRuler: '#9ca3af',
+  activeMatchBackground: '#eab308',
+  activeMatchColorOverviewRuler: '#eab308',
+};
 
 export function createPanel(initialPanel, actions, theme) {
   let panel = initialPanel;
@@ -33,6 +44,7 @@ export function createPanel(initialPanel, actions, theme) {
     onClick: stopClick(() => openMenu(moreButton, [
       { label: 'Split right', onSelect: () => actions.splitPanel(panel, 'row') },
       { label: 'Split down', onSelect: () => actions.splitPanel(panel, 'column') },
+      { label: 'Find in output…', onSelect: () => openFind() },
       { label: 'Restart agent', onSelect: () => actions.restartPanel(panel.id) },
       { label: 'Copy folder path', onSelect: () => navigator.clipboard.writeText(panel.cwd) },
     ])),
@@ -49,13 +61,24 @@ export function createPanel(initialPanel, actions, theme) {
   const overlay = h('div', { class: 'panel-overlay' });
   overlay.hidden = true;
 
+  // An agent writes far more than fits on a screen, so reading back through it
+  // by eye is hopeless. Ctrl+F searches the scrollback the way a page does.
+  const findInput = h('input', { class: 'find-input', type: 'text', placeholder: 'Find in output', spellcheck: 'false' });
+  const findCount = h('span', { class: 'find-count' });
+  const findPrev = h('button', { class: 'icon-button tiny', title: 'Previous match (Shift+Enter)' }, icon('chevronDown', { size: 12 }));
+  const findNext = h('button', { class: 'icon-button tiny', title: 'Next match (Enter)' }, icon('chevronDown', { size: 12 }));
+  const findClose = h('button', { class: 'icon-button tiny', title: 'Close (Esc)' }, icon('close', { size: 12 }));
+  findPrev.style.transform = 'rotate(180deg)';
+  const findBar = h('div', { class: 'find-bar' }, findInput, findCount, findPrev, findNext, findClose);
+  findBar.hidden = true;
+
   const element = h('div', { class: 'panel', dataset: { panelId: panel.id } },
     h('div', { class: 'panel-header', onDblclick: () => actions.toggleMaximize(panel.id) },
       dot,
       mark,
       title,
       h('div', { class: 'panel-actions' }, moreButton, maximizeButton, plusButton, closeButton)),
-    h('div', { class: 'panel-body' }, host, overlay));
+    h('div', { class: 'panel-body' }, host, findBar, overlay));
   element.addEventListener('pointerdown', () => actions.focusPanel(panel.id));
 
   const terminal = new Terminal({
@@ -65,11 +88,69 @@ export function createPanel(initialPanel, actions, theme) {
     cursorBlink: true,
     scrollback: 5000,
     theme: terminalTheme(theme),
+    // Painting every match of a search uses xterm's decoration API, which is
+    // still marked proposed. The version is pinned, so this cannot change
+    // under us without the change being asked for.
+    allowProposedApi: true,
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
+  const searchAddon = new SearchAddon();
+  terminal.loadAddon(searchAddon);
   terminal.open(host);
   terminal.onData((data) => actions.input(panel.id, data));
+
+  // Ctrl+F belongs to the dashboard rather than to the agent: without this the
+  // terminal would forward it and the agent would see a stray keystroke.
+  terminal.attachCustomKeyEventHandler((event) => {
+    if (event.type !== 'keydown' || !event.ctrlKey || event.shiftKey || event.altKey) return true;
+    if (event.key !== 'f' && event.key !== 'F') return true;
+    openFind();
+    return false;
+  });
+
+  searchAddon.onDidChangeResults((results) => {
+    findCount.textContent = matchLabel({ term: findInput.value, ...results });
+  });
+
+  const findOptions = { decorations: FIND_DECORATIONS };
+
+  function search(direction, { fromCursor = true } = {}) {
+    const term = findInput.value;
+    if (!term) {
+      searchAddon.clearDecorations();
+      findCount.textContent = '';
+      return;
+    }
+    const options = { ...findOptions, incremental: !fromCursor };
+    if (direction === 'back') searchAddon.findPrevious(term, options);
+    else searchAddon.findNext(term, options);
+  }
+
+  function openFind() {
+    findBar.hidden = false;
+    findInput.focus();
+    findInput.select();
+    if (findInput.value) search('forward', { fromCursor: false });
+  }
+
+  function closeFind() {
+    findBar.hidden = true;
+    searchAddon.clearDecorations();
+    findCount.textContent = '';
+    terminal.focus();
+  }
+
+  findInput.addEventListener('input', () => search('forward', { fromCursor: false }));
+  findInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') return closeFind();
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    search(event.shiftKey ? 'back' : 'forward');
+  });
+  findNext.addEventListener('click', stopClick(() => search('forward')));
+  findPrev.addEventListener('click', stopClick(() => search('back')));
+  findClose.addEventListener('click', stopClick(closeFind));
 
   function fit() {
     if (!host.isConnected || host.clientWidth === 0 || host.clientHeight === 0) return;
@@ -156,6 +237,7 @@ ${panel.cwd}`;
       terminal.options.theme = terminalTheme(next);
     },
     focusTerminal: () => terminal.focus(),
+    openFind,
     dispose() {
       observer.disconnect();
       terminal.dispose();

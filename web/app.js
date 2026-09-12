@@ -8,6 +8,7 @@ import { createAgentRail } from './agent-rail.js';
 import { createAgentView } from './agent-view.js';
 import { createChatRail } from './chat-rail.js';
 import { createChatView } from './chat-view.js';
+import { installShortcuts } from './shortcuts.js';
 import { createBell } from './bell.js';
 import { createCanvas } from './canvas.js';
 import { isActive, sameFolder } from '/shared/status.js';
@@ -384,6 +385,10 @@ const actions = {
     api.send('panel:resize', { panelId, cols, rows });
   },
 
+  findInPanel(panelId) {
+    canvas.find(panelId);
+  },
+
   focusPanel(panelId) {
     const workspace = workspaceOf(panelId);
     const changed = model.focusedPanelId !== panelId
@@ -518,6 +523,7 @@ function render() {
 }
 
 render();
+installShortcuts(actions, model);
 
 const api = connect({
   onMessage(message) {

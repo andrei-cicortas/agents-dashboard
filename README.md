@@ -59,6 +59,24 @@ Panels tile the canvas, so there is always exactly enough room for all of them.
 Each workspace keeps its own arrangement, and it is still there when you
 reopen the window.
 
+## Finding something in a panel
+
+An agent writes far more than fits on a screen. **Ctrl+F** inside a panel, or
+**Find in output…** in its **...** menu, searches everything it has written:
+every match is highlighted, the one you are on in yellow, and Enter and
+Shift+Enter walk forwards and back. Escape closes it.
+
+## Keyboard
+
+| | |
+|---|---|
+| `Ctrl+1` `Ctrl+2` `Ctrl+3` | Agent, Code, Chat — even from inside a terminal |
+| `Ctrl+B` | Show or hide the sidebar |
+| `Ctrl+N` | New chat, or a new thread for the agent you are on |
+| `Ctrl+F` | Find in the panel you are in |
+
+The terminals get every other key, so nothing here is taken away from an agent.
+
 ## Web panes
 
 **New web page** in a folder's **+** menu docks a browser beside the terminals,
@@ -226,6 +244,10 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
 - [ ] Ask something, switch to Code before it answers → the bell badge goes up,
       the Chat tab shows a dot, and clicking the notification opens that chat.
 - [ ] Sit on the chat while it answers → no badge, because you saw it.
+- [ ] Ctrl+F in a busy panel → the bar opens, matches light up, Enter walks
+      through them, and the agent never sees the keystroke.
+- [ ] Ctrl+3 with the caret in a terminal → the Chat tab opens and the agent
+      gets nothing (no stray Escape).
 - [ ] Split a panel right, then down → the three tile with no gaps.
 - [ ] Drag a line between two panels → both resize, and neither can be dragged
       away to nothing.

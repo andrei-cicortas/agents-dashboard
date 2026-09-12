@@ -411,6 +411,37 @@ button { font: inherit; color: inherit; }
 .panel-overlay .message { max-width: 340px; color: var(--muted); }
 .overlay-actions { display: flex; gap: 8px; }
 
+/* Searching a panel's scrollback. It floats over the top-right of the output,
+   the way a browser's find bar does, so nothing has to move to make room. */
+.find-bar {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 4px 3px 8px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--ring-strong), 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+.find-input {
+  width: 150px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+.find-input:focus { outline: none; }
+.find-input::placeholder { color: var(--dim); }
+.find-count {
+  min-width: 56px;
+  color: var(--dim);
+  font-size: 11px;
+  text-align: right;
+}
+
 .button {
   padding: 5px 12px;
   border: 0;
