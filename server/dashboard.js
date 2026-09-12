@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { addNotification, markRead, markAllRead, unreadCount, removeForPanel } from './notifications.js';
 import { insert, reconcile } from '../shared/tiling.js';
+import { webAddress } from '../shared/address.js';
 
 const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 
@@ -15,6 +16,8 @@ const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 // (not typing into the panel) must not clear the "needs your input" dot.
 const FOCUS_REPORT = /^(?:\x1b\[[IO])+$/;
 const isFocusReport = (data) => FOCUS_REPORT.test(data);
+
+const isBrowser = (panel) => panel.kind === 'browser';
 
 function samePath(a, b) {
   return path.win32.normalize(a).toLowerCase() === path.win32.normalize(b).toLowerCase();
@@ -74,7 +77,7 @@ export function createDashboard({
       type: 'state',
       agents: agents.map(({ id, name }) => ({ id, name })),
       projects,
-      panels: panels.map((panel) => ({ ...panel, agentName: agentName(panel.agentId) })),
+      panels: panels.map((panel) => (isBrowser(panel) ? { ...panel } : { ...panel, agentName: agentName(panel.agentId) })),
       notifications,
       layouts,
       unread: unreadCount(notifications),
@@ -84,7 +87,9 @@ export function createDashboard({
   function save() {
     store.save({
       projects,
-      panels: panels.map(({ id, agentId, cwd, sessionId, title }) => ({ id, agentId, cwd, sessionId, title })),
+      panels: panels.map((panel) => (isBrowser(panel)
+        ? { id: panel.id, kind: 'browser', cwd: panel.cwd, url: panel.url }
+        : { id: panel.id, agentId: panel.agentId, cwd: panel.cwd, sessionId: panel.sessionId, title: panel.title })),
       notifications,
       layouts,
     });
@@ -138,9 +143,14 @@ export function createDashboard({
     projects = saved.projects;
     notifications = saved.notifications;
     layouts = saved.layouts ?? {};
-    panels = saved.panels.map((panel) => ({ ...panel, status: 'starting', message: null, attention: false }));
+    panels = saved.panels.map((panel) => ({
+      ...panel,
+      status: isBrowser(panel) ? 'browser' : 'starting',
+      message: null,
+      attention: false,
+    }));
     reconcileLayouts();
-    panels.forEach((panel) => launch(panel, 'resume'));
+    panels.filter((panel) => !isBrowser(panel)).forEach((panel) => launch(panel, 'resume'));
     publish();
   }
 
@@ -148,6 +158,7 @@ export function createDashboard({
     hello(_message, reply) {
       reply(state());
       for (const panel of panels) {
+        if (isBrowser(panel)) continue;
         reply({ type: 'panel:replay', panelId: panel.id, data: agentManager.readScrollback(panel.id) });
       }
     },
@@ -177,30 +188,45 @@ export function createDashboard({
       commit();
     },
 
-    'panel:create'({ agentId, cwd, nextTo, direction }) {
-      if (!agents.some((agent) => agent.id === agentId) || typeof cwd !== 'string') return;
+    'panel:create'({ agentId, cwd, kind, url, nextTo, direction }) {
+      if (typeof cwd !== 'string') return;
+      const browser = kind === 'browser';
+      const address = browser ? webAddress(url) : null;
+      if (browser ? !address : !agents.some((agent) => agent.id === agentId)) return;
+
       // A window may ask for the new panel to split one that is already there.
       const beside = panelsOfFolder(cwd).some((panel) => panel.id === nextTo) ? nextTo : null;
       const along = direction === 'column' ? 'column' : 'row';
-      const panel = {
-        id: newId(),
-        agentId,
-        cwd,
-        sessionId: newSessionId(),
-        title: null,
-        status: 'starting',
-        message: null,
-        attention: false,
-      };
+      const panel = browser
+        ? { id: newId(), kind: 'browser', cwd, url: address, status: 'browser', message: null, attention: false }
+        : {
+          id: newId(),
+          agentId,
+          cwd,
+          sessionId: newSessionId(),
+          title: null,
+          status: 'starting',
+          message: null,
+          attention: false,
+        };
       panels = [...panels, panel];
       layouts = { ...layouts, [layoutKey(cwd)]: insert(layoutOf(cwd), panel.id, { nextTo: beside, direction: along }) };
       commit();
-      launch(panel, 'start');
+      if (!browser) launch(panel, 'start');
+    },
+
+    'panel:url'({ panelId, url }) {
+      const panel = findPanel(panelId);
+      const address = webAddress(url);
+      if (!panel || !isBrowser(panel) || !address) return;
+      panel.url = address;
+      commit();
     },
 
     'panel:close'({ panelId }) {
-      if (!findPanel(panelId)) return;
-      agentManager.forget(panelId);
+      const closing = findPanel(panelId);
+      if (!closing) return;
+      if (!isBrowser(closing)) agentManager.forget(panelId);
       panels = panels.filter((panel) => panel.id !== panelId);
       notifications = removeForPanel(notifications, panelId);
       for (const [clientId, focused] of focusByClient) {
@@ -212,7 +238,7 @@ export function createDashboard({
 
     'panel:restart'({ panelId }) {
       const panel = findPanel(panelId);
-      if (!panel) return;
+      if (!panel || isBrowser(panel)) return;
       Object.assign(panel, { sessionId: newSessionId(), title: null, status: 'starting', message: null, attention: false });
       commit();
       launch(panel, 'start');
@@ -220,7 +246,7 @@ export function createDashboard({
 
     'panel:input'({ panelId, data }) {
       const panel = findPanel(panelId);
-      if (!panel || typeof data !== 'string') return;
+      if (!panel || isBrowser(panel) || typeof data !== 'string') return;
       agentManager.write(panelId, data);
       if (panel.attention && !isFocusReport(data)) {
         panel.attention = false;
@@ -229,7 +255,8 @@ export function createDashboard({
     },
 
     'panel:resize'({ panelId, cols, rows }) {
-      if (!findPanel(panelId) || !Number.isInteger(cols) || !Number.isInteger(rows)) return;
+      const panel = findPanel(panelId);
+      if (!panel || isBrowser(panel) || !Number.isInteger(cols) || !Number.isInteger(rows)) return;
       agentManager.resize(panelId, cols, rows);
     },
 
@@ -269,7 +296,7 @@ export function createDashboard({
 
   function handleHook({ panelId, event }) {
     const panel = findPanel(panelId);
-    if (!panel || !HOOK_EVENTS.has(event)) return false;
+    if (!panel || isBrowser(panel) || !HOOK_EVENTS.has(event)) return false;
     if (event === 'needs-input') panel.attention = true;
     notifications = addNotification(notifications, {
       id: newId(),

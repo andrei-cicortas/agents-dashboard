@@ -416,3 +416,70 @@ test('a restored panel that the saved layout never knew about is taken in', () =
   dashboard.start();
   assert.deepEqual(lastState().layouts[GAME], { panelId: 'p1' });
 });
+
+const BROWSER = { type: 'panel:create', kind: 'browser', cwd: GAME, url: 'http://localhost:3000' };
+const withProject = () => ({ projects: [{ path: GAME, name: 'my game', pinned: false }], panels: [], notifications: [], layouts: {} });
+
+test('a browser pane is created without starting an agent', async () => {
+  const { dashboard, manager, send, lastState } = setup({ initial: withProject() });
+  dashboard.start();
+  await send(BROWSER);
+  assert.deepEqual(manager.calls, [], 'nothing was launched');
+  const panel = lastState().panels[0];
+  assert.equal(panel.kind, 'browser');
+  assert.equal(panel.url, 'http://localhost:3000');
+  assert.equal(panel.status, 'browser');
+});
+
+test('a browser pane takes its place on the canvas like any other', async () => {
+  const { dashboard, store, send } = setup({ initial: withProject() });
+  dashboard.start();
+  await send({ type: 'panel:create', agentId: 'claude', cwd: GAME });
+  await send({ ...BROWSER, nextTo: 'id1', direction: 'row' });
+  assert.deepEqual(store.saved.layouts[GAME], {
+    direction: 'row',
+    sizes: [0.5, 0.5],
+    children: [{ panelId: 'id1' }, { panelId: 'id2' }],
+  });
+});
+
+test('a browser pane is saved with its address and restored without resuming', () => {
+  const saved = {
+    ...withProject(),
+    panels: [{ id: 'b1', kind: 'browser', cwd: GAME, url: 'http://localhost:5173' }],
+  };
+  const { dashboard, manager, lastState } = setup({ initial: saved });
+  dashboard.start();
+  assert.deepEqual(manager.calls, [], 'nothing was resumed');
+  assert.equal(lastState().panels[0].url, 'http://localhost:5173');
+});
+
+test('a browser pane can be pointed somewhere else', async () => {
+  const { dashboard, store, send } = setup({ initial: withProject() });
+  dashboard.start();
+  await send(BROWSER);
+  await send({ type: 'panel:url', panelId: 'id1', url: 'http://127.0.0.1:8080/admin' });
+  assert.equal(store.saved.panels[0].url, 'http://127.0.0.1:8080/admin');
+});
+
+test('only http and https addresses are accepted', async () => {
+  const { dashboard, send, lastState } = setup({ initial: withProject() });
+  dashboard.start();
+  for (const url of ['javascript:alert(1)', 'file:///C:/Windows', 'data:text/html,hi', '', 42]) {
+    await send({ ...BROWSER, url });
+  }
+  assert.deepEqual(lastState().panels, [], `nothing should have been created`);
+
+  await send(BROWSER);
+  await send({ type: 'panel:url', panelId: 'id1', url: 'javascript:alert(1)' });
+  assert.equal(lastState().panels[0].url, 'http://localhost:3000', 'the address is left alone');
+});
+
+test('typing into a browser pane goes nowhere', async () => {
+  const { dashboard, manager, send } = setup({ initial: withProject() });
+  dashboard.start();
+  await send(BROWSER);
+  await send({ type: 'panel:input', panelId: 'id1', data: 'ls\r' });
+  await send({ type: 'panel:resize', panelId: 'id1', cols: 80, rows: 24 });
+  assert.deepEqual(manager.calls, []);
+});

@@ -21,3 +21,9 @@ test('sameFolder ignores case, trailing slashes, and slash direction', () => {
   assert.equal(sameFolder('C:\\Games\\My Game', 'c:/games/my game/'), true);
   assert.equal(sameFolder('C:\\Games\\My Game', 'C:\\Games\\Other'), false);
 });
+
+test('a browser pane has a look of its own and is not counted as an agent', () => {
+  const pane = { kind: 'browser', status: 'browser', url: 'http://localhost:3000' };
+  assert.equal(dotClass(pane), 'browser');
+  assert.equal(isActive(pane), false, 'it is not an agent that could be left running');
+});

@@ -8,6 +8,7 @@
 
 import { resize, toLayout } from '/shared/tiling.js';
 import { createPanel } from './panel.js';
+import { createBrowserPane } from './browser-pane.js';
 
 // Half the gap between neighbours, in pixels; the other half comes from the
 // panel on the other side of the seam.
@@ -147,7 +148,7 @@ export function createCanvas(root, emptyElement, actions, initialTheme) {
       for (const panel of panels) {
         let view = views.get(panel.id);
         if (!view) {
-          view = createPanel(panel, actions, theme);
+          view = panel.kind === 'browser' ? createBrowserPane(panel, actions) : createPanel(panel, actions, theme);
           views.set(panel.id, view);
           root.append(view.element);
         }

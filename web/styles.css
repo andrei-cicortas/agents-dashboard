@@ -249,6 +249,7 @@ button { font: inherit; color: inherit; }
 .dot.starting { background: var(--yellow); }
 .dot.attention { background: var(--orange); box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2); }
 .dot.stopped { background: var(--grey); }
+.dot.browser { background: var(--accent); }
 
 /* ---------- Main area ---------- */
 
@@ -344,6 +345,36 @@ button { font: inherit; color: inherit; }
 }
 .panel-mark .dot { position: absolute; right: -2px; bottom: -2px; box-shadow: 0 0 0 2px var(--surface); }
 .panel-mark .dot.attention { box-shadow: 0 0 0 2px var(--surface), 0 0 0 5px rgba(249, 115, 22, 0.2); }
+
+/* A web pane carries an address bar where a terminal panel has its title. */
+.panel-mark.browser-mark { background: var(--veil-active); color: var(--muted); }
+.panel.focused .panel-mark.browser-mark { color: var(--text); }
+
+.address {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+.address:hover { background: var(--veil-hover); }
+.address:focus { background: var(--veil-active); color: var(--text); outline: none; text-overflow: clip; }
+.panel.focused .address { color: var(--text); }
+
+.browser-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
 
 .panel-actions { display: flex; }
 .panel-actions .icon-button { width: 24px; height: 24px; }

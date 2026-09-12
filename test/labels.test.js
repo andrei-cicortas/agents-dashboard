@@ -21,3 +21,13 @@ test('notificationText describes the event', () => {
   assert.equal(notificationText({ event: 'needs-input' }, panel), 'Claude Code · my game needs your input');
   assert.equal(notificationText({ event: 'finished' }, undefined), 'Closed agent finished');
 });
+
+test('a browser pane is named by the address it is showing', () => {
+  assert.equal(panelLabel({ kind: 'browser', url: 'http://localhost:3000' }), 'localhost:3000');
+  assert.equal(panelLabel({ kind: 'browser', url: 'http://localhost:3000/orders?tab=new' }), 'localhost:3000/orders');
+  assert.equal(panelLabel({ kind: 'browser', url: 'https://example.com/' }), 'example.com');
+});
+
+test('an address that will not parse is shown as it is', () => {
+  assert.equal(panelLabel({ kind: 'browser', url: 'not a url' }), 'not a url');
+});

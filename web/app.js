@@ -11,6 +11,7 @@ import { mergeLayouts } from '/shared/layout-sync.js';
 import { cssVariables, DEFAULT_THEME_ID, themeById } from '/shared/themes.js';
 
 const PREFS_KEY = 'agents-dashboard-ui';
+const DEFAULT_ADDRESS = 'http://localhost:3000';
 const byId = (id) => document.getElementById(id);
 
 function loadPrefs() {
@@ -169,8 +170,27 @@ const actions = {
     render();
   },
 
+  // A web pane starts on the port most dev servers use; the address bar in
+  // its header is there to point it somewhere else.
+  createBrowserPane(cwd, placement = null) {
+    model.tab = 'code';
+    model.maximizedPanelId = null;
+    model.selectedWorkspace = cwd;
+    const focused = panelsIn(cwd).some((panel) => panel.id === model.focusedPanelId) ? model.focusedPanelId : null;
+    const where = placement ?? (focused ? { nextTo: focused, direction: canvas.splitDirection(focused) } : {});
+    savePrefs();
+    api.send('panel:create', { kind: 'browser', cwd, url: DEFAULT_ADDRESS, ...where });
+    render();
+  },
+
+  setPanelUrl(panelId, url) {
+    api.send('panel:url', { panelId, url });
+  },
+
   splitPanel(panel, direction) {
-    actions.createPanel(panel.agentId, panel.cwd, { nextTo: panel.id, direction });
+    const where = { nextTo: panel.id, direction };
+    if (panel.kind === 'browser') actions.createBrowserPane(panel.cwd, where);
+    else actions.createPanel(panel.agentId, panel.cwd, where);
   },
 
   setLayout(tree) {

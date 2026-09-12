@@ -50,6 +50,21 @@ Panels tile the canvas, so there is always exactly enough room for all of them.
 Each workspace keeps its own arrangement, and it is still there when you
 reopen the window.
 
+## Web panes
+
+**New web page** in a folder's **+** menu docks a browser beside the terminals,
+so you can look at what the agents just built without leaving the window. It
+starts on `http://localhost:3000`; type another address in its header and press
+Enter. Only `http` and `https` addresses are accepted.
+
+A web pane is an ordinary pane: it splits, resizes, maximises and is saved with
+the rest of the arrangement. It runs no agent, so it never rings the bell and
+is not counted among the running agents.
+
+Some sites refuse to be shown inside another page (they send
+`X-Frame-Options` or a `frame-ancestors` policy) and will come up blank. Local
+dev servers normally do not.
+
 ## Colour themes
 
 The palette button in the top bar switches between ten dark themes — Midnight,
@@ -125,6 +140,10 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
       other, and neither undoes the other.
 - [ ] Pick a theme → the app and the running terminals both change, and the
       choice is still there after a reload.
+- [ ] Start a dev server, add a web pane, point it at it → the page shows, and
+      Reload fetches it again.
+- [ ] Close the window and open it again → the web pane comes back on the same
+      address.
 - [ ] Start Codex (or see the install hint if it is not installed).
 - [ ] Close the window, wait, open the shortcut again → the panels are still there with their output.
 - [ ] Power button → confirm → "Dashboard stopped".

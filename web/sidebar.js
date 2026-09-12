@@ -22,7 +22,8 @@ export function createSidebar(root, actions) {
       // label and folder stay in the tooltip.
       title: `${panelLabel(panel)}\n${panel.cwd}`,
       onClick: () => actions.focusPanel(panel.id),
-    }, h('span', { class: `dot ${dotClass(panel)}` }), h('span', { class: 'label' }, panel.title || panel.agentName));
+    }, h('span', { class: `dot ${dotClass(panel)}` }),
+    h('span', { class: 'label' }, panel.kind === 'browser' ? panelLabel(panel) : (panel.title || panel.agentName)));
   }
 
   function projectBlock(project, model) {
@@ -35,10 +36,13 @@ export function createSidebar(root, actions) {
       title: 'Start an agent in this folder',
       onClick: (event) => {
         event.stopPropagation();
-        openMenu(addButton, state.agents.map((agent) => ({
-          label: `New ${agent.name}`,
-          onSelect: () => actions.createPanel(agent.id, project.path),
-        })));
+        openMenu(addButton, [
+          ...state.agents.map((agent) => ({
+            label: `New ${agent.name}`,
+            onSelect: () => actions.createPanel(agent.id, project.path),
+          })),
+          { label: 'New web page', onSelect: () => actions.createBrowserPane(project.path) },
+        ]);
       },
     }, icon('plus', { size: 14 }));
 
