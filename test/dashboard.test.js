@@ -359,10 +359,11 @@ test('layout:set with a null layout forgets that workspace', async () => {
 test('layout:set ignores anything that is not a path and a layout', async () => {
   const { dashboard, send, lastState } = setup({ initial: withPanel() });
   dashboard.start();
+  const before = lastState().layouts;
   await send({ type: 'layout:set', path: 7, layout: { panelId: 'p1' } });
   await send({ type: 'layout:set', path: GAME, layout: 'nope' });
   await send({ type: 'layout:set', path: GAME, layout: [] });
-  assert.deepEqual(lastState().layouts, {});
+  assert.deepEqual(lastState().layouts, before);
 });
 
 test('removing a project forgets the layout that went with it', async () => {
@@ -371,4 +372,47 @@ test('removing a project forgets the layout that went with it', async () => {
   dashboard.start();
   await send({ type: 'project:remove', path: GAME });
   assert.deepEqual(store.saved.layouts, {});
+});
+
+test('a new panel takes its place in the layout of its workspace', async () => {
+  const { dashboard, store, send } = setup({ initial: { projects: [{ path: GAME, name: 'my game', pinned: false }], panels: [], notifications: [], layouts: {} } });
+  dashboard.start();
+  await send({ type: 'panel:create', agentId: 'claude', cwd: GAME });
+  assert.deepEqual(store.saved.layouts[GAME], { panelId: 'id1' });
+});
+
+test('a new panel asked for beside another splits that one', async () => {
+  const { dashboard, store, send } = setup({ initial: { projects: [{ path: GAME, name: 'my game', pinned: false }], panels: [], notifications: [], layouts: {} } });
+  dashboard.start();
+  await send({ type: 'panel:create', agentId: 'claude', cwd: GAME });
+  await send({ type: 'panel:create', agentId: 'codex', cwd: GAME, nextTo: 'id1', direction: 'column' });
+  assert.deepEqual(store.saved.layouts[GAME], {
+    direction: 'column',
+    sizes: [0.5, 0.5],
+    children: [{ panelId: 'id1' }, { panelId: 'id2' }],
+  });
+});
+
+test('closing a panel takes it out of the layout', async () => {
+  const { dashboard, store, send } = setup({ initial: { projects: [{ path: GAME, name: 'my game', pinned: false }], panels: [], notifications: [], layouts: {} } });
+  dashboard.start();
+  await send({ type: 'panel:create', agentId: 'claude', cwd: GAME });
+  await send({ type: 'panel:create', agentId: 'codex', cwd: GAME });
+  await send({ type: 'panel:close', panelId: 'id1' });
+  assert.deepEqual(store.saved.layouts[GAME], { panelId: 'id2' });
+});
+
+test('closing the last panel leaves the workspace without a layout', async () => {
+  const { dashboard, store, send } = setup({ initial: { projects: [{ path: GAME, name: 'my game', pinned: false }], panels: [], notifications: [], layouts: {} } });
+  dashboard.start();
+  await send({ type: 'panel:create', agentId: 'claude', cwd: GAME });
+  await send({ type: 'panel:close', panelId: 'id1' });
+  assert.deepEqual(store.saved.layouts, {});
+});
+
+test('a restored panel that the saved layout never knew about is taken in', () => {
+  const saved = { ...withPanel(), layouts: {} };
+  const { dashboard, lastState } = setup({ initial: saved });
+  dashboard.start();
+  assert.deepEqual(lastState().layouts[GAME], { panelId: 'p1' });
 });

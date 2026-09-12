@@ -33,6 +33,23 @@ This puts an **Agents Dashboard** shortcut on your desktop.
 4. Type your task into the panel's terminal.
 5. The bell shows when an agent finishes or needs your input.
 
+The canvas shows one workspace at a time: click a folder to open it, or the
+chevron to fold its list of agents. Agents in other folders keep running.
+
+## Arranging the panels
+
+Panels tile the canvas, so there is always exactly enough room for all of them.
+
+- Drag the line between two panels to give one of them more space.
+- **Split right** and **Split down** in a panel's **...** menu start another
+  agent of the same kind beside it.
+- The grid button in the top bar has **Tidy**, which squares everything up
+  again, and fixed column counts.
+- The arrows in a panel header make it fill the canvas, and put it back.
+
+Each workspace keeps its own arrangement, and it is still there when you
+reopen the window.
+
 Closing the window does **not** stop the agents. Open the shortcut again to see
 them. The power button (top right) stops all agents and the server.
 
@@ -49,7 +66,8 @@ Restart the dashboard (power button, then the shortcut).
 
 ## Where things are stored
 
-- State (workspaces, panels, notifications): `%APPDATA%\agents-dashboard\state.json`
+- State (workspaces, panels, notifications, panel arrangements):
+  `%APPDATA%\agents-dashboard\state.json`
 - Server logs: `%APPDATA%\agents-dashboard\server.log` and `server-error.log`
 
 ## Troubleshooting
@@ -84,6 +102,17 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
 - [ ] The sidebar row changes to the conversation topic (the panel header keeps
       showing the folder, with the agent's coloured mark next to it).
 - [ ] The Agent and Chat tabs show their "coming soon" placeholder.
+- [ ] Split a panel right, then down → the three tile with no gaps.
+- [ ] Drag a line between two panels → both resize, and neither can be dragged
+      away to nothing.
+- [ ] Close a panel → its space goes to its neighbour.
+- [ ] Tidy → the panels square up into a grid.
+- [ ] Add a second folder, start an agent in it, switch between the two → each
+      folder keeps its own arrangement and the other agents keep running.
+- [ ] Rearrange, close the window, open the shortcut again → the arrangement
+      comes back.
+- [ ] Open the dashboard in two windows → splitting in one shows up in the
+      other, and neither undoes the other.
 - [ ] Start Codex (or see the install hint if it is not installed).
 - [ ] Close the window, wait, open the shortcut again → the panels are still there with their output.
 - [ ] Power button → confirm → "Dashboard stopped".

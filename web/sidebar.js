@@ -58,8 +58,24 @@ export function createSidebar(root, actions) {
       },
     }, icon('more', { size: 14 }));
 
-    const row = h('div', { class: 'project-row', title: project.path, onClick: () => actions.toggleProject(project.path) },
-      icon(open ? 'chevronDown' : 'chevronRight', { size: 14 }),
+    // Clicking the row opens the workspace on the canvas; the chevron on its
+    // own only folds the list of panels underneath it.
+    const chevron = h('button', {
+      class: 'icon-button chevron',
+      title: open ? 'Hide its agents' : 'Show its agents',
+      onClick: (event) => {
+        event.stopPropagation();
+        actions.toggleProject(project.path);
+      },
+    }, icon(open ? 'chevronDown' : 'chevronRight', { size: 14 }));
+
+    const selected = sameFolder(project.path, model.selectedWorkspace ?? '');
+    const row = h('div', {
+      class: `project-row${selected ? ' selected' : ''}`,
+      title: project.path,
+      onClick: () => actions.selectWorkspace(project.path),
+    },
+      chevron,
       h('span', { class: 'label' }, project.name),
       h('span', { class: 'count' }, panels.length ? String(panels.length) : ''),
       h('span', { class: 'row-actions' }, addButton, moreButton));

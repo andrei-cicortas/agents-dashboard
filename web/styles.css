@@ -186,6 +186,8 @@ button { font: inherit; color: inherit; }
   cursor: pointer;
 }
 .project-row:hover { background: var(--veil-hover); }
+.project-row.selected { background: var(--veil-active); }
+.project-row .chevron { width: 20px; height: 20px; margin-left: -2px; }
 .project-row .icon { color: var(--dim); }
 .project-row .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project-row .row-actions { display: none; gap: 2px; }
@@ -253,12 +255,30 @@ button { font: inherit; color: inherit; }
 .main { grid-column: 2; position: relative; min-width: 0; min-height: 0; }
 .code-view, .chat-view, .agent-view { position: absolute; inset: 0; }
 
-.grid {
-  display: grid;
-  gap: var(--gap);
-  height: 100%;
-  overflow-y: auto;
+/* The canvas reaches half a gap past the main area on every side, so that the
+   half-gap each panel keeps around itself adds up to the same distance at the
+   window edge as between two neighbours. */
+.canvas {
+  position: absolute;
+  inset: calc(var(--gap) / -2);
 }
+.canvas.resizing { user-select: none; }
+.canvas.resizing .panel { pointer-events: none; }
+
+/* A divider is a wide invisible grab area with a thin line drawn down it. */
+.divider { position: absolute; z-index: 5; }
+.divider.row { cursor: col-resize; }
+.divider.column { cursor: row-resize; }
+.divider::after {
+  content: "";
+  position: absolute;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 120ms ease;
+}
+.divider.row::after { top: 0; bottom: 0; left: 50%; width: 3px; transform: translateX(-50%); }
+.divider.column::after { left: 0; right: 0; top: 50%; height: 3px; transform: translateY(-50%); }
+.divider:hover::after { background: var(--accent); }
 
 .empty, .chat-view, .agent-view, .stopped {
   display: flex;
@@ -275,6 +295,7 @@ button { font: inherit; color: inherit; }
 /* ---------- Panels ---------- */
 
 .panel {
+  position: absolute;
   display: flex;
   flex-direction: column;
   min-width: 0;

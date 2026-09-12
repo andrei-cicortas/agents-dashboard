@@ -2,6 +2,7 @@
 
 import { h } from './dom.js';
 import { icon } from './icons.js';
+import { openMenu } from './menu.js';
 
 const TABS = [
   { id: 'agent', label: 'Agent' },
@@ -11,6 +12,17 @@ const TABS = [
 
 export function createTopbar(root, actions) {
   const bellMount = h('div', { class: 'bell-mount' });
+  const layoutButton = h('button', {
+    class: 'icon-button',
+    title: 'Arrange the panels',
+    onClick: () => openMenu(layoutButton, [
+      { label: 'Tidy', onSelect: () => actions.tidyLayout() },
+      { label: '1 column', onSelect: () => actions.tidyLayout(1) },
+      { label: '2 columns', onSelect: () => actions.tidyLayout(2) },
+      { label: '3 columns', onSelect: () => actions.tidyLayout(3) },
+      { label: '4 columns', onSelect: () => actions.tidyLayout(4) },
+    ]),
+  }, icon('layout'));
   const buttons = TABS.map((tab) => h('button', {
     class: 'tab',
     role: 'tab',
@@ -23,6 +35,7 @@ export function createTopbar(root, actions) {
       h('button', { class: 'icon-button', title: 'Toggle sidebar', onClick: () => actions.toggleSidebar() }, icon('sidebar'))),
     h('div', { class: 'tabs', role: 'tablist' }, buttons),
     h('div', { class: 'topbar-right' },
+      layoutButton,
       bellMount,
       h('button', { class: 'icon-button', title: 'Stop all agents and close the dashboard', onClick: () => actions.stopAll() }, icon('power'))),
   );

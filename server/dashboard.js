@@ -5,6 +5,7 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { addNotification, markRead, markAllRead, unreadCount, removeForPanel } from './notifications.js';
+import { insert, reconcile } from '../shared/tiling.js';
 
 const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 
@@ -45,6 +46,28 @@ export function createDashboard({
 
   const agentName = (agentId) => agents.find((agent) => agent.id === agentId)?.name ?? agentId;
   const findPanel = (panelId) => panels.find((panel) => panel.id === panelId);
+  const panelsOfFolder = (cwd) => panels.filter((panel) => samePath(panel.cwd, cwd));
+
+  // Layouts are keyed by the path first used for that folder; reuse that key
+  // rather than adding a second one that differs only in case or slashes.
+  const layoutKey = (cwd) => Object.keys(layouts).find((key) => samePath(key, cwd)) ?? cwd;
+  const layoutOf = (cwd) => layouts[layoutKey(cwd)] ?? null;
+
+  // Placing a panel on the canvas belongs here rather than in a window: two
+  // windows watching the same workspace would otherwise each decide where a
+  // new panel goes, and the slower one would undo the other.
+  function reconcileLayouts() {
+    const next = {};
+    const folders = [];
+    for (const panel of panels) {
+      if (!folders.some((cwd) => samePath(cwd, panel.cwd))) folders.push(panel.cwd);
+    }
+    for (const cwd of folders) {
+      const tree = reconcile(layoutOf(cwd), panelsOfFolder(cwd).map((panel) => panel.id));
+      if (tree) next[layoutKey(cwd)] = tree;
+    }
+    layouts = next;
+  }
 
   function state() {
     return {
@@ -116,6 +139,7 @@ export function createDashboard({
     notifications = saved.notifications;
     layouts = saved.layouts ?? {};
     panels = saved.panels.map((panel) => ({ ...panel, status: 'starting', message: null, attention: false }));
+    reconcileLayouts();
     panels.forEach((panel) => launch(panel, 'resume'));
     publish();
   }
@@ -153,8 +177,11 @@ export function createDashboard({
       commit();
     },
 
-    'panel:create'({ agentId, cwd }) {
+    'panel:create'({ agentId, cwd, nextTo, direction }) {
       if (!agents.some((agent) => agent.id === agentId) || typeof cwd !== 'string') return;
+      // A window may ask for the new panel to split one that is already there.
+      const beside = panelsOfFolder(cwd).some((panel) => panel.id === nextTo) ? nextTo : null;
+      const along = direction === 'column' ? 'column' : 'row';
       const panel = {
         id: newId(),
         agentId,
@@ -166,6 +193,7 @@ export function createDashboard({
         attention: false,
       };
       panels = [...panels, panel];
+      layouts = { ...layouts, [layoutKey(cwd)]: insert(layoutOf(cwd), panel.id, { nextTo: beside, direction: along }) };
       commit();
       launch(panel, 'start');
     },
@@ -178,6 +206,7 @@ export function createDashboard({
       for (const [clientId, focused] of focusByClient) {
         if (focused === panelId) focusByClient.delete(clientId);
       }
+      reconcileLayouts();
       commit();
     },
 

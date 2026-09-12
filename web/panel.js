@@ -52,6 +52,8 @@ export function createPanel(initialPanel, actions) {
     class: 'icon-button',
     title: 'More',
     onClick: stopClick(() => openMenu(moreButton, [
+      { label: 'Split right', onSelect: () => actions.splitPanel(panel, 'row') },
+      { label: 'Split down', onSelect: () => actions.splitPanel(panel, 'column') },
       { label: 'Restart agent', onSelect: () => actions.restartPanel(panel.id) },
       { label: 'Copy folder path', onSelect: () => navigator.clipboard.writeText(panel.cwd) },
     ])),

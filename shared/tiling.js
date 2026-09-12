@@ -14,7 +14,7 @@ import { gridSize } from './layout.js';
 
 export const leaf = (panelId) => ({ panelId });
 
-export const isLeaf = (node) => Object.hasOwn(node, 'panelId');
+const isLeaf = (node) => Object.hasOwn(node, 'panelId');
 
 // Percentages are only ever used for display, so trim the noise that binary
 // floating point leaves behind (0.3 * 100 is not exactly 30).
@@ -35,7 +35,7 @@ const evenSizes = (count) => normalize(Array.from({ length: count }, () => 1));
 
 const split = (direction, children, sizes) => ({ direction, sizes: sizes ?? evenSizes(children.length), children });
 
-export function panelsOf(node) {
+function panelsOf(node) {
   if (!node) return [];
   return isLeaf(node) ? [node.panelId] : node.children.flatMap(panelsOf);
 }
@@ -44,14 +44,14 @@ const contains = (node, panelId) => panelsOf(node).includes(panelId);
 
 // Builds the same near-square grid the dashboard used before panels could be
 // dragged, so "Tidy" is a return to that familiar arrangement.
-export function tidy(panelIds) {
+export function tidy(panelIds, columns = gridSize(panelIds.length).columns) {
   if (panelIds.length === 0) return null;
   if (panelIds.length === 1) return leaf(panelIds[0]);
 
-  const { columns } = gridSize(panelIds.length);
+  const perRow = Math.max(1, Math.min(columns, panelIds.length));
   const rows = [];
-  for (let index = 0; index < panelIds.length; index += columns) {
-    const row = panelIds.slice(index, index + columns).map(leaf);
+  for (let index = 0; index < panelIds.length; index += perRow) {
+    const row = panelIds.slice(index, index + perRow).map(leaf);
     rows.push(row.length === 1 ? row[0] : { direction: 'row', sizes: evenSizes(row.length), children: row });
   }
   if (rows.length === 1) return rows[0];
@@ -97,8 +97,14 @@ export function toLayout(tree) {
         path,
         index,
         position: round(across ? before.left + before.width : before.top + before.height),
+        // Where the divider is drawn: across the split, the full width of it.
         start: round(across ? box.top : box.left),
         extent: round(across ? box.height : box.width),
+        // How big the split itself is along the axis being dragged, so a drag
+        // in pixels can be turned into a fraction of this split and not of the
+        // whole canvas.
+        axisStart: round(across ? box.left : box.top),
+        axisExtent: round(across ? box.width : box.height),
       });
     }
 
