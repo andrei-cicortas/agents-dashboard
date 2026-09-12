@@ -14,7 +14,7 @@ function sleepSync(ms) {
 }
 
 export function emptyState() {
-  return { projects: [], panels: [], notifications: [] };
+  return { projects: [], panels: [], notifications: [], layouts: {} };
 }
 
 // `fs` can be replaced in tests to simulate disk errors.
@@ -72,9 +72,11 @@ function normalize(parsed) {
     throw new Error('State file is not an object');
   }
   const list = (value) => (Array.isArray(value) ? value : []);
+  const map = (value) => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
   return {
     projects: list(parsed.projects),
     panels: list(parsed.panels),
     notifications: list(parsed.notifications),
+    layouts: map(parsed.layouts),
   };
 }

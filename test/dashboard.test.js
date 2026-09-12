@@ -332,3 +332,43 @@ test('unknown message types are ignored', async () => {
   assert.deepEqual(manager.calls, []);
   assert.deepEqual(store.saved, emptyState());
 });
+
+test('start restores the layouts that were saved', () => {
+  const saved = { ...withPanel(), layouts: { [GAME]: { panelId: 'p1' } } };
+  const { dashboard, lastState } = setup({ initial: saved });
+  dashboard.start();
+  assert.deepEqual(lastState().layouts, { [GAME]: { panelId: 'p1' } });
+});
+
+test('layout:set stores the layout for one workspace and tells every window', async () => {
+  const { dashboard, store, send, lastState } = setup({ initial: withPanel() });
+  dashboard.start();
+  const layout = { direction: 'row', sizes: [0.5, 0.5], children: [{ panelId: 'p1' }, { panelId: 'p2' }] };
+  await send({ type: 'layout:set', path: GAME, layout });
+  assert.deepEqual(store.saved.layouts, { [GAME]: layout });
+  assert.deepEqual(lastState().layouts, { [GAME]: layout });
+});
+
+test('layout:set with a null layout forgets that workspace', async () => {
+  const { dashboard, store, send } = setup({ initial: { ...withPanel(), layouts: { [GAME]: { panelId: 'p1' } } } });
+  dashboard.start();
+  await send({ type: 'layout:set', path: GAME, layout: null });
+  assert.deepEqual(store.saved.layouts, {});
+});
+
+test('layout:set ignores anything that is not a path and a layout', async () => {
+  const { dashboard, send, lastState } = setup({ initial: withPanel() });
+  dashboard.start();
+  await send({ type: 'layout:set', path: 7, layout: { panelId: 'p1' } });
+  await send({ type: 'layout:set', path: GAME, layout: 'nope' });
+  await send({ type: 'layout:set', path: GAME, layout: [] });
+  assert.deepEqual(lastState().layouts, {});
+});
+
+test('removing a project forgets the layout that went with it', async () => {
+  const initial = { projects: [{ path: GAME, name: 'my game', pinned: false }], panels: [], notifications: [], layouts: { [GAME]: { panelId: 'p1' } } };
+  const { dashboard, store, send } = setup({ initial });
+  dashboard.start();
+  await send({ type: 'project:remove', path: GAME });
+  assert.deepEqual(store.saved.layouts, {});
+});

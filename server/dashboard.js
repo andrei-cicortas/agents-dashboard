@@ -33,6 +33,9 @@ export function createDashboard({
   let projects = [];
   let panels = [];
   let notifications = [];
+  // Tiling layout per workspace path; the UI owns its shape, the server only
+  // keeps it so it survives closing the window.
+  let layouts = {};
   // Guards against a second folder-picker process spawning while one is
   // already open (each extra click otherwise stacks another hidden dialog).
   let addingProject = false;
@@ -50,6 +53,7 @@ export function createDashboard({
       projects,
       panels: panels.map((panel) => ({ ...panel, agentName: agentName(panel.agentId) })),
       notifications,
+      layouts,
       unread: unreadCount(notifications),
     };
   }
@@ -59,6 +63,7 @@ export function createDashboard({
       projects,
       panels: panels.map(({ id, agentId, cwd, sessionId, title }) => ({ id, agentId, cwd, sessionId, title })),
       notifications,
+      layouts,
     });
   }
 
@@ -109,6 +114,7 @@ export function createDashboard({
     const saved = store.load();
     projects = saved.projects;
     notifications = saved.notifications;
+    layouts = saved.layouts ?? {};
     panels = saved.panels.map((panel) => ({ ...panel, status: 'starting', message: null, attention: false }));
     panels.forEach((panel) => launch(panel, 'resume'));
     publish();
@@ -138,6 +144,7 @@ export function createDashboard({
     'project:remove'({ path: projectPath }) {
       if (panels.some((panel) => samePath(panel.cwd, projectPath))) return;
       projects = projects.filter((project) => !samePath(project.path, projectPath));
+      layouts = Object.fromEntries(Object.entries(layouts).filter(([key]) => !samePath(key, projectPath)));
       commit();
     },
 
@@ -200,6 +207,15 @@ export function createDashboard({
     'panel:focus'({ panelId }, _reply, clientId) {
       if (findPanel(panelId)) focusByClient.set(clientId, panelId);
       else focusByClient.delete(clientId);
+    },
+
+    'layout:set'({ path: workspacePath, layout }) {
+      if (typeof workspacePath !== 'string') return;
+      const usable = layout === null || (typeof layout === 'object' && !Array.isArray(layout));
+      if (!usable) return;
+      const rest = Object.entries(layouts).filter(([key]) => !samePath(key, workspacePath));
+      layouts = Object.fromEntries(layout === null ? rest : [...rest, [workspacePath, layout]]);
+      commit();
     },
 
     'notifications:read'({ id, all }) {

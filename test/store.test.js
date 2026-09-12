@@ -20,6 +20,7 @@ test('save then load round-trips the state and creates folders', () => {
     projects: [{ path: 'C:\\Games\\my game', name: 'my game', pinned: true }],
     panels: [{ id: 'p1', agentId: 'claude', cwd: 'C:\\Games\\my game', sessionId: 'abc', title: null }],
     notifications: [],
+    layouts: { 'C:\\Games\\my game': { panelId: 'p1' } },
   };
   store.save(state);
   assert.deepEqual(store.load(), state);
@@ -57,7 +58,7 @@ function flakyFs(codes) {
   return fakeFs;
 }
 
-const sampleState = { projects: [], panels: [], notifications: [{ id: 'n1' }] };
+const sampleState = { projects: [], panels: [], notifications: [{ id: 'n1' }], layouts: {} };
 
 test('save retries a busy rename and then succeeds', (t) => {
   const errors = t.mock.method(console, 'error', () => {});
@@ -105,4 +106,22 @@ test('valid JSON that is not an object counts as corrupt', () => {
   fs.writeFileSync(file, '42');
   assert.deepEqual(createStore(file).load(), emptyState());
   assert.equal(fs.existsSync(path.join(dir, 'state.corrupt.json')), true);
+});
+
+test('empty state starts with no saved layouts', () => {
+  assert.deepEqual(emptyState().layouts, {});
+});
+
+test('load fills a missing layouts map with an empty one', () => {
+  const file = path.join(dir, 'state.json');
+  fs.writeFileSync(file, JSON.stringify({ projects: [], panels: [], notifications: [] }));
+  assert.deepEqual(createStore(file).load().layouts, {});
+});
+
+test('a layouts value that is not a plain object is ignored', () => {
+  const file = path.join(dir, 'state.json');
+  for (const layouts of [[], 'nope', 7, null]) {
+    fs.writeFileSync(file, JSON.stringify({ layouts }));
+    assert.deepEqual(createStore(file).load().layouts, {}, `layouts=${JSON.stringify(layouts)}`);
+  }
 });
