@@ -9,6 +9,7 @@ import { findAgent, buildLaunch } from './agents-config.js';
 import { createScrollback } from './scrollback.js';
 import { createTitleTracker, isUsefulTitle } from './terminal-title.js';
 import { looksTyped } from '../shared/input.js';
+import { findSessionId as findCodexSession } from './codex-sessions.js';
 
 const DEFAULT_SIZE = { cols: 120, rows: 30 };
 
@@ -30,11 +31,20 @@ export function createAgentManager({
   folderExists = (dir) => fs.existsSync(dir),
   kill = killTree,
   newSessionId = () => crypto.randomUUID(),
+  // How an agent that names its own session is asked which one it opened, and
+  // how often. Codex writes the answer out only once the conversation really
+  // starts, which can be a while if it is waiting to be trusted.
+  findSessionId = findCodexSession,
+  discoverEveryMs = 1000,
+  discoverForMs = 120_000,
 }) {
   const emitter = new EventEmitter();
   const processes = new Map();
   const scrollbacks = new Map();
   const sizes = new Map();
+  // Sessions already claimed by a panel, so two panels on one folder cannot end
+  // up pointing at the same conversation.
+  const claimed = new Map();
 
   const setStatus = (panelId, status, message = null) => {
     emitter.emit('status', { panelId, status, message });
@@ -43,6 +53,38 @@ export function createAgentManager({
   function scrollbackFor(panelId) {
     if (!scrollbacks.has(panelId)) scrollbacks.set(panelId, createScrollback());
     return scrollbacks.get(panelId);
+  }
+
+  // Waits for an agent that names its own session to write down which one it
+  // opened, then tells whoever is listening so the panel can resume it later.
+  function discoverSession(panelId, entry, cwd) {
+    const startedAt = Date.now();
+    const deadline = startedAt + discoverForMs;
+    entry.timer = setInterval(() => {
+      if (processes.get(panelId) !== entry) return stopDiscovering(entry);
+      let found = null;
+      try {
+        found = findSessionId({ cwd, startedAt, taken: new Set(claimed.values()) });
+      } catch {
+        // Nothing to resume is better than an agent that will not start.
+        found = null;
+      }
+      if (found) {
+        claimed.set(panelId, found);
+        stopDiscovering(entry);
+        emitter.emit('session', { panelId, sessionId: found, reason: 'discovered' });
+      } else if (Date.now() > deadline) {
+        stopDiscovering(entry);
+      }
+    }, discoverEveryMs);
+    // Waiting for this must never be the reason the server stays alive.
+    entry.timer.unref?.();
+  }
+
+  function stopDiscovering(entry) {
+    if (!entry.timer) return;
+    clearInterval(entry.timer);
+    entry.timer = null;
   }
 
   function start(options) {
@@ -68,9 +110,10 @@ export function createAgentManager({
       cwd,
       env: { ...env, AGENTS_DASHBOARD_PANEL_ID: panelId },
     });
-    const entry = { term, sawOutput: false, sawInput: false };
+    const entry = { term, sawOutput: false, sawInput: false, timer: null };
     const titles = createTitleTracker();
     processes.set(panelId, entry);
+    if (agent.sessionSource === 'codex' && !sessionId) discoverSession(panelId, entry, cwd);
 
     term.onData((data) => {
       if (processes.get(panelId) !== entry) return;
@@ -95,7 +138,7 @@ export function createAgentManager({
       // ever typed into it, so that is what decides whether to start it fresh.
       if (mode === 'resume' && !entry.sawInput) {
         const freshId = newSessionId();
-        emitter.emit('session', { panelId, sessionId: freshId });
+        emitter.emit('session', { panelId, sessionId: freshId, reason: 'restarted' });
         // This runs inside a pseudo-terminal callback: a throw here would end
         // the server, so report it on the panel instead.
         try {

@@ -6,7 +6,7 @@ import { emptyState } from '../server/store.js';
 
 const agents = [
   { id: 'claude', name: 'Claude Code', command: 'claude', startArgs: [], resumeArgs: [], installHint: 'h' },
-  { id: 'codex', name: 'Codex', command: 'codex', startArgs: [], resumeArgs: [], installHint: 'h' },
+  { id: 'codex', name: 'Codex', command: 'codex', startArgs: [], resumeArgs: [], installHint: 'h', sessionSource: 'codex' },
 ];
 const GAME = 'C:\\Games\\my game';
 
@@ -159,11 +159,11 @@ test('project:pin toggles pinned and project:remove is blocked while a panel use
 test('panel:create starts a fresh agent and saves only persistent fields', async () => {
   const { dashboard, store, manager, send } = setup();
   dashboard.start();
-  await send({ type: 'panel:create', agentId: 'codex', cwd: GAME });
-  assert.deepEqual(manager.calls.at(-1), ['start', { panelId: 'id1', agentId: 'codex', cwd: GAME, sessionId: 'session1', mode: 'start' }]);
+  await send({ type: 'panel:create', agentId: 'claude', cwd: GAME });
+  assert.deepEqual(manager.calls.at(-1), ['start', { panelId: 'id1', agentId: 'claude', cwd: GAME, sessionId: 'session1', mode: 'start' }]);
   // The session is not written down until the panel has been used: an id for a
   // conversation that was never started cannot be resumed later.
-  assert.deepEqual(store.saved.panels, [{ id: 'id1', agentId: 'codex', cwd: GAME, sessionId: null, title: null }]);
+  assert.deepEqual(store.saved.panels, [{ id: 'id1', agentId: 'claude', cwd: GAME, sessionId: null, title: null }]);
 });
 
 test('panel:create ignores an unknown agent', async () => {
@@ -576,4 +576,41 @@ test('a path with a trailing slash is stored as a plain folder path', async () =
   const { send, dashboard } = setup({ folderExists: () => true });
   await send({ type: 'project:add', path: 'C:\\Games\\my game\\' });
   assert.equal(dashboard.state().projects[0].name, 'my game');
+});
+
+test('a session the agent named itself is remembered straight away', () => {
+  // Codex writes the conversation as soon as it opens it, so unlike an id we
+  // made up, this one really can be resumed.
+  const { dashboard, store, manager } = setup({ initial: withPanel() });
+  dashboard.start();
+  manager.emit('session', { panelId: 'p1', sessionId: 'codex-abc', reason: 'discovered' });
+  assert.equal(store.saved.panels[0].sessionId, 'codex-abc');
+});
+
+test('an agent that names its own session is not handed one we invented', async () => {
+  // Codex ignores any id we pass and picks its own. Writing ours down would
+  // mean asking, on every restart, to resume a conversation Codex never had.
+  const { dashboard, store, manager, send } = setup();
+  dashboard.start();
+  await send({ type: 'panel:create', agentId: 'codex', cwd: GAME });
+  assert.equal(manager.calls.at(-1)[1].sessionId, null);
+  assert.equal(store.saved.panels[0].sessionId, null);
+});
+
+test('an agent we name the session for still gets one', async () => {
+  const { dashboard, manager, send } = setup();
+  dashboard.start();
+  await send({ type: 'panel:create', agentId: 'claude', cwd: GAME });
+  assert.equal(manager.calls.at(-1)[1].sessionId, 'session1');
+});
+
+test('a restored panel of a self-naming agent is not given an invented session either', () => {
+  const saved = {
+    projects: [{ path: GAME, name: 'my game', pinned: false }],
+    panels: [{ id: 'p1', agentId: 'codex', cwd: GAME, sessionId: null, title: null }],
+    notifications: [],
+  };
+  const { dashboard, manager } = setup({ initial: saved });
+  dashboard.start();
+  assert.deepEqual(manager.calls[0][1], { panelId: 'p1', agentId: 'codex', cwd: GAME, sessionId: null, mode: 'start' });
 });

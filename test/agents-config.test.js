@@ -66,13 +66,15 @@ test('buildLaunch builds a Claude start command line', () => {
 test('buildLaunch builds a Codex resume command line with a quoted notify value', () => {
   const codex = findAgent(loadAgents(configPath), 'codex');
   const launch = buildLaunch(codex, 'resume', {
-    sessionId: 'unused',
+    // Codex is resumed by the id of the conversation this panel opened, not by
+    // "the most recent one here", which every panel on the folder would share.
+    sessionId: 'codex-abc',
     claudeHooksFile: 'unused',
     codexNotify: codexNotifyValue({ nodePath, hookClientPath }),
   });
   assert.equal(
     launch.commandLine,
-    `/d /s /c "codex resume --last -c "notify=['D:/node.exe','C:/Claude/Agents Dasboard/server/hook-client.js','codex']""`,
+    `/d /s /c "codex resume codex-abc -c "notify=['D:/node.exe','C:/Claude/Agents Dasboard/server/hook-client.js','codex']""`,
   );
 });
 

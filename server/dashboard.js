@@ -14,11 +14,6 @@ import { looksTyped } from '../shared/input.js';
 
 const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 
-// xterm.js reports terminal focus/blur as \x1b[I / \x1b[O when the pty has
-// asked for focus tracking (DECSET 1004). These arrive through the same
-// panel:input channel as real keystrokes, but a click elsewhere in the app
-// (not typing into the panel) must not clear the "needs your input" dot.
-
 const isBrowser = (panel) => panel.kind === 'browser';
 
 function samePath(a, b) {
@@ -63,6 +58,12 @@ export function createDashboard({
   const focusByClient = new Map();
 
   const agentName = (agentId) => agents.find((agent) => agent.id === agentId)?.name ?? agentId;
+  // Codex picks its own session and ignores anything we pass, so a panel of
+  // one starts with none and is told which it opened afterwards. Inventing an
+  // id here would name a conversation that never exists.
+  const namesOwnSession = (agentId) => Boolean(agents.find((agent) => agent.id === agentId)?.sessionSource);
+  const sessionFor = (agentId) => (namesOwnSession(agentId) ? null : newSessionId());
+
   function addProject(folder) {
     if (projects.some((project) => samePath(project.path, folder))) return;
     projects = [...projects, { path: folder, name: path.win32.basename(folder) || folder, pinned: false }];
@@ -169,15 +170,16 @@ export function createDashboard({
     commit();
   });
 
-  agentManager.on('session', ({ panelId, sessionId }) => {
+  agentManager.on('session', ({ panelId, sessionId, reason }) => {
     const panel = findPanel(panelId);
     if (!panel) return;
-    // A fresh session means resuming the old one failed. Whatever conversation
-    // this panel used to have is gone, so it goes back to having none until it
-    // is typed into — otherwise a dead id is only ever swapped for another
-    // dead id, and the panel comes back broken after every restart.
     panel.sessionId = sessionId;
-    panel.used = false;
+    // An agent that names its own session has already written the conversation
+    // down, so that id is worth keeping at once. A session handed over after a
+    // failed resume has nothing behind it yet: the panel goes back to having no
+    // conversation until it is typed into, or a dead id would only ever be
+    // swapped for another dead id and the panel would break on every restart.
+    panel.used = reason === 'discovered';
     save();
   });
 
@@ -198,7 +200,7 @@ export function createDashboard({
       // Only a panel that was used has a conversation waiting for it; the rest
       // start again from nothing, under an id of their own.
       used: !isBrowser(panel) && Boolean(panel.sessionId),
-      sessionId: isBrowser(panel) ? undefined : (panel.sessionId ?? newSessionId()),
+      sessionId: isBrowser(panel) ? undefined : (panel.sessionId ?? sessionFor(panel.agentId)),
       status: isBrowser(panel) ? 'browser' : 'starting',
       message: null,
       attention: false,
@@ -383,7 +385,7 @@ export function createDashboard({
           id: newId(),
           agentId,
           cwd,
-          sessionId: newSessionId(),
+          sessionId: sessionFor(agentId),
           title: null,
           status: 'starting',
           message: null,

@@ -26,6 +26,16 @@ const agents = [
     resumeArgs: [],
     installHint: 'Install missing',
   },
+  {
+    id: 'discovering',
+    name: 'Names its own session',
+    command: 'node',
+    startArgs: [fixture('echo-agent.js'), 'x'],
+    resumeArgs: [fixture('echo-agent.js'), '{sessionId}'],
+    installHint: 'Install it',
+    // Like Codex: it picks its own session, so the id is read back afterwards.
+    sessionSource: 'codex',
+  },
 ];
 
 const managers = [];
@@ -114,7 +124,7 @@ test('falls back to a fresh session when a resume exits quickly', async () => {
   const ready = waitForOutput(manager, 'p4', /READY session=fresh-1/);
 
   manager.start({ panelId: 'p4', agentId: 'echo', cwd: workDir, sessionId: 'old', mode: 'resume' });
-  assert.deepEqual(await session, { panelId: 'p4', sessionId: 'fresh-1' });
+  assert.deepEqual(await session, { panelId: 'p4', sessionId: 'fresh-1', reason: 'restarted' });
   await ready;
   manager.stop('p4');
 });
@@ -216,4 +226,73 @@ test('an agent that was typed into and then exits is left alone', () => {
   exitHandler({ exitCode: 0 });
   assert.equal(spawned.length, 1, 'it should not have been started again');
   assert.equal(statuses.at(-1).status, 'exited');
+});
+
+test('a Codex panel learns which conversation it opened, so it can resume its own', async () => {
+  // Codex names its own session and will only resume "the most recent one in
+  // this folder", which is the same one for every panel. The id is read back
+  // from what Codex wrote instead.
+  let announced = null;
+  const manager = makeManager({
+    exists: () => true,
+    kill: () => {},
+    findSessionId: () => 'codex-abc',
+    discoverEveryMs: 5,
+    spawn: () => fakeTerm(),
+  });
+  const session = waitFor(manager, 'session', (p) => p.panelId === 'p30');
+  manager.start({ panelId: 'p30', agentId: 'discovering', cwd: workDir, sessionId: null, mode: 'start' });
+  announced = await session;
+  assert.deepEqual(announced, { panelId: 'p30', sessionId: 'codex-abc', reason: 'discovered' });
+  manager.stop('p30');
+});
+
+test('an agent that names its own session is not asked about for other kinds', async () => {
+  let asked = 0;
+  const manager = makeManager({
+    exists: () => true,
+    kill: () => {},
+    findSessionId: () => { asked += 1; return 'nope'; },
+    discoverEveryMs: 5,
+    spawn: () => fakeTerm(),
+  });
+  manager.start({ panelId: 'p31', agentId: 'echo', cwd: workDir, sessionId: 's', mode: 'start' });
+  await new Promise((resolve) => setTimeout(resolve, 40));
+  assert.equal(asked, 0, 'only an agent configured that way should be looked up');
+  manager.stop('p31');
+});
+
+test('two Codex panels in one folder do not claim the same conversation', async () => {
+  const handed = ['codex-1', 'codex-2'];
+  const manager = makeManager({
+    exists: () => true,
+    kill: () => {},
+    findSessionId: ({ taken }) => handed.find((id) => !taken.has(id)) ?? null,
+    discoverEveryMs: 5,
+    spawn: () => fakeTerm(),
+  });
+  const first = waitFor(manager, 'session', (p) => p.panelId === 'p32');
+  manager.start({ panelId: 'p32', agentId: 'discovering', cwd: workDir, sessionId: null, mode: 'start' });
+  const one = await first;
+  const second = waitFor(manager, 'session', (p) => p.panelId === 'p33');
+  manager.start({ panelId: 'p33', agentId: 'discovering', cwd: workDir, sessionId: null, mode: 'start' });
+  const two = await second;
+  assert.notEqual(one.sessionId, two.sessionId);
+  manager.stop('p32');
+  manager.stop('p33');
+});
+
+test('a resume that failed says so, so the panel knows its conversation is gone', () => {
+  let exitHandler;
+  const manager = makeManager({
+    exists: () => true,
+    kill: () => {},
+    newSessionId: () => 'fresh-9',
+    spawn: () => ({ ...fakeTerm(), onExit(handler) { exitHandler = handler; } }),
+  });
+  const seen = [];
+  manager.on('session', (payload) => seen.push(payload));
+  manager.start({ panelId: 'p34', agentId: 'echo', cwd: workDir, sessionId: 'old', mode: 'resume' });
+  exitHandler({ exitCode: 1 });
+  assert.deepEqual(seen.at(-1), { panelId: 'p34', sessionId: 'fresh-9', reason: 'restarted' });
 });

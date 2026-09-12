@@ -28,7 +28,8 @@ This puts an **Agents Dashboard** shortcut on your desktop.
 ## Daily use
 
 1. Double-click **Agents Dashboard** on the desktop.
-2. Click **+** next to "Workspaces" and choose a project folder.
+2. Click **+** next to "Workspaces". Paste a folder path, or **Browse…** for
+   one.
 3. Hover the project, click **+**, and pick Claude Code or Codex.
 4. Type your task into the panel's terminal.
 5. The bell shows when an agent finishes or needs your input.
@@ -118,6 +119,21 @@ Closing the window does **not** stop the agents. Open the shortcut again to see
 them. **Settings** (the gear in the account card) stops all agents and the
 server.
 
+## How a panel finds its conversation again
+
+Closing the window does not end a conversation, so a panel has to know which
+one to pick up. The two agents go about that differently.
+
+Claude Code is told which session to use, so the dashboard names one and asks
+for it again later. Codex names its own and offers no way to choose it, so the
+dashboard reads the id back out of what Codex wrote, and resumes that. Using
+`codex resume --last` instead would give every panel on a folder the same
+conversation, which is wrong the moment two agents work side by side.
+
+Either way the id is only written down once the conversation is real — a panel
+you opened and never typed into has nothing to resume, so it simply starts. If
+a resume fails anyway, the panel starts fresh instead of staying dead.
+
 ## Adding another agent type
 
 Add an entry to `config/agents.json`:
@@ -126,6 +142,8 @@ Add an entry to `config/agents.json`:
 - `startArgs` / `resumeArgs`: arguments for a new session / for continuing one
 - placeholders: `{sessionId}`, `{claudeHooksFile}`, `{codexNotify}`
 - `installHint`: shown when the command is not installed
+- `sessionSource`: `"codex"` for an agent that names its own session, so its id
+  is read back after it starts rather than chosen in advance
 
 Restart the dashboard (Settings → stop, then the shortcut).
 
@@ -199,4 +217,6 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
 - [ ] Leave Claude idle for more than 60 seconds after it finishes → the panel stays green (no "needs your input").
 - [ ] Click into a Claude panel, close the window, let Claude finish, reopen → the bell badge shows 1.
 - [ ] Reload the window with Claude open → no stray characters (like `[?1;2c`) appear in Claude's prompt box.
-- [ ] Codex (after installing it): the panel starts, `codex resume --last` works after a restart, and the bell rings when Codex finishes — not yet verified on this PC.
+- [ ] Two Codex panels in one folder, each given something different to
+      remember → after a restart each carries on its own conversation, not the
+      same one twice.
