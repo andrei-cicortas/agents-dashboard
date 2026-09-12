@@ -36,7 +36,7 @@ function memoryStore(initial) {
   };
 }
 
-function setup({ initial = emptyState(), picked = null, pickFolder = async () => picked, userName = 'tester' } = {}) {
+function setup({ initial = emptyState(), picked = null, pickFolder = async () => picked, userName = 'tester', folderExists = () => true } = {}) {
   const store = memoryStore(initial);
   const manager = fakeAgentManager();
   const sent = [];
@@ -47,6 +47,7 @@ function setup({ initial = emptyState(), picked = null, pickFolder = async () =>
     agentManager: manager,
     agents,
     pickFolder,
+    folderExists,
     broadcast: (message) => sent.push(message),
     requestStop: () => sent.push({ type: 'stop-requested' }),
     now: () => new Date('2026-09-11T10:00:00.000Z'),
@@ -536,4 +537,43 @@ test('a panel restored without a session starts a new agent instead of resuming 
   const [[, options]] = manager.calls;
   assert.equal(options.mode, 'start');
   assert.ok(options.sessionId, 'it needs an id to start under');
+});
+
+test('a folder can be added by its path, without opening the picker', async () => {
+  let pickerOpened = false;
+  const { send, store } = setup({
+    pickFolder: async () => { pickerOpened = true; return null; },
+    folderExists: (dir) => dir === GAME,
+  });
+  await send({ type: 'project:add', path: GAME });
+  assert.equal(pickerOpened, false, 'a path was given, so nothing should pop up');
+  assert.deepEqual(store.saved.projects, [{ path: GAME, name: 'my game', pinned: false }]);
+});
+
+test('a path that is not a folder is refused, and says so', async () => {
+  const replies = [];
+  const { dashboard } = setup({ folderExists: () => false });
+  await dashboard.handleMessage({ type: 'project:add', path: 'C:\\nope' }, (m) => replies.push(m));
+  assert.equal(dashboard.state().projects.length, 0);
+  assert.deepEqual(replies.at(-1), { type: 'project:add-failed', path: 'C:\\nope', message: 'That folder does not exist.' });
+});
+
+test('adding the same folder twice by path changes nothing', async () => {
+  const { send, dashboard } = setup({ folderExists: () => true });
+  await send({ type: 'project:add', path: GAME });
+  await send({ type: 'project:add', path: 'c:\\games\\MY GAME' });
+  assert.equal(dashboard.state().projects.length, 1);
+});
+
+test('a blank path still opens the picker', async () => {
+  let pickerOpened = false;
+  const { send } = setup({ pickFolder: async () => { pickerOpened = true; return null; } });
+  await send({ type: 'project:add', path: '   ' });
+  assert.equal(pickerOpened, true);
+});
+
+test('a path with a trailing slash is stored as a plain folder path', async () => {
+  const { send, dashboard } = setup({ folderExists: () => true });
+  await send({ type: 'project:add', path: 'C:\\Games\\my game\\' });
+  assert.equal(dashboard.state().projects[0].name, 'my game');
 });

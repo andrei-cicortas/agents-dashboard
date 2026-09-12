@@ -83,15 +83,74 @@ export function createSidebar(root, actions) {
     return h('div', { class: 'project' }, row, open && panels.length ? panels.map((panel) => agentRow(panel, model)) : []);
   }
 
+  // Adding a folder two ways: paste the path, which is quicker when you have
+  // it, or browse for it. The message says why a path was refused.
+  const pathInput = h('input', {
+    class: 'field',
+    type: 'text',
+    spellcheck: 'false',
+    placeholder: 'Paste a folder path',
+    onKeydown: (event) => {
+      if (event.key === 'Escape') closeAdd();
+      if (event.key !== 'Enter') return;
+      const typed = pathInput.value.trim();
+      if (typed) actions.addProject(typed);
+    },
+  });
+  const addMessage = h('div', { class: 'add-message' });
+  addMessage.hidden = true;
+  const addForm = h('div', { class: 'add-folder' },
+    pathInput,
+    addMessage,
+    h('div', { class: 'form-actions' },
+      h('button', { class: 'button', onClick: () => actions.addProject() }, 'Browse…'),
+      h('button', {
+        class: 'button primary',
+        onClick: () => {
+          const typed = pathInput.value.trim();
+          if (typed) actions.addProject(typed);
+        },
+      }, 'Add')));
+  addForm.hidden = true;
+
+  function closeAdd() {
+    addForm.hidden = true;
+    pathInput.value = '';
+    addMessage.hidden = true;
+  }
+
+  const addButton = h('button', {
+    class: 'icon-button',
+    title: 'Add a project folder',
+    onClick: () => {
+      addForm.hidden = !addForm.hidden;
+      addMessage.hidden = true;
+      if (!addForm.hidden) pathInput.focus();
+    },
+  }, icon('plus'));
+
   const header = h('div', { class: 'sidebar-header' },
     h('span', { class: 'title' }, 'Workspaces'),
-    h('button', { class: 'icon-button', title: 'Add a project folder', onClick: () => actions.addProject() }, icon('plus')));
-  root.replaceChildren(header, scroll);
+    addButton);
+  root.replaceChildren(header, addForm, scroll);
 
   return {
+    // Shown under the box when the server would not take the path.
+    addFailed(message) {
+      addForm.hidden = false;
+      addMessage.textContent = message;
+      addMessage.hidden = false;
+      pathInput.focus();
+      pathInput.select();
+    },
+
     render(model) {
       const { state } = model;
       if (!state) return;
+
+      // The folder arrived, so the box has done its job.
+      const typed = pathInput.value.trim();
+      if (typed && state.projects.some((project) => sameFolder(project.path, typed))) closeAdd();
 
       const pinned = state.projects.filter((project) => project.pinned);
       const others = state.projects.filter((project) => !project.pinned);

@@ -3,6 +3,7 @@
 // whatever this module broadcasts.
 
 import crypto from 'node:crypto';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { addNotification, markRead, markAllRead, unreadCount, removeForPanel } from './notifications.js';
@@ -30,6 +31,7 @@ export function createDashboard({
   agentRunner = null,
   agents,
   pickFolder,
+  folderExists = (dir) => fs.existsSync(dir),
   broadcast,
   requestStop = () => {},
   now = () => new Date(),
@@ -61,6 +63,12 @@ export function createDashboard({
   const focusByClient = new Map();
 
   const agentName = (agentId) => agents.find((agent) => agent.id === agentId)?.name ?? agentId;
+  function addProject(folder) {
+    if (projects.some((project) => samePath(project.path, folder))) return;
+    projects = [...projects, { path: folder, name: path.win32.basename(folder) || folder, pinned: false }];
+    commit();
+  }
+
   const findProfile = (profileId) => profiles.find((profile) => profile.id === profileId);
   const findThread = (threadId) => threads.find((thread) => thread.id === threadId);
   // Enough colours to tell a rail of agents apart at a glance; past the end it
@@ -325,14 +333,24 @@ export function createDashboard({
       commit();
     },
 
-    async 'project:add'() {
+    async 'project:add'({ path: typed } = {}, reply) {
+      // A path can be pasted straight in, which is quicker than the picker and
+      // does not depend on a modal dialog finding its way to the front.
+      const given = typeof typed === 'string' ? typed.trim() : '';
+      if (given) {
+        const folder = path.win32.normalize(given).replace(/[\\/]+$/, '');
+        if (!folderExists(folder)) {
+          reply?.({ type: 'project:add-failed', path: typed, message: 'That folder does not exist.' });
+          return;
+        }
+        addProject(folder);
+        return;
+      }
       if (addingProject) return;
       addingProject = true;
       try {
         const picked = await pickFolder();
-        if (!picked || projects.some((project) => samePath(project.path, picked))) return;
-        projects = [...projects, { path: picked, name: path.win32.basename(picked) || picked, pinned: false }];
-        commit();
+        if (picked) addProject(picked);
       } finally {
         addingProject = false;
       }

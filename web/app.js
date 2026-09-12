@@ -190,8 +190,8 @@ const actions = {
     if (confirm(question)) api.send('server:stop');
   },
 
-  addProject() {
-    api.send('project:add');
+  addProject(folderPath) {
+    api.send('project:add', folderPath ? { path: folderPath } : {});
   },
 
   removeProject(path) {
@@ -412,6 +412,8 @@ const api = connect({
       canvas.write(message.panelId, message.data);
     } else if (message.type === 'panel:replay') {
       canvas.replay(message.panelId, message.data);
+    } else if (message.type === 'project:add-failed') {
+      sidebar.addFailed(message.message);
     } else if (message.type === 'server:stopped') {
       byId('stopped').hidden = false;
       byId('banner').hidden = true;
