@@ -70,6 +70,7 @@ export function createAgentView(root, actions) {
     if (!profile) return;
     openMenu(gear, [
       { label: profile.tools ? 'Only let it read' : 'Let it change files', onSelect: () => actions.setProfileTools(profile.id, !profile.tools) },
+      { label: 'Open its folder in Explorer', onSelect: () => actions.openFolder(profile.cwd) },
       { label: 'Rename…', onSelect: () => actions.renameProfile(profile.id) },
       { label: 'Remove this agent', onSelect: () => actions.removeProfile(profile.id) },
     ]);

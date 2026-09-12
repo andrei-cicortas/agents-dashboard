@@ -851,6 +851,27 @@ button { font: inherit; color: inherit; }
   white-space: pre-wrap;
 }
 .prose { margin: 8px 0; font-size: 12.5px; line-height: 1.55; }
+
+/* An answer, with the one button that saves selecting it by hand. It keeps out
+   of the way until the pointer is over the answer it belongs to. */
+.answer { position: relative; }
+.answer-copy {
+  position: absolute;
+  top: 4px;
+  right: 0;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--ring);
+  color: var(--dim);
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+}
+.answer:hover .answer-copy,
+.answer-copy:focus-visible { opacity: 1; }
+.answer-copy:hover { color: var(--text); }
 .thought { margin: 6px 0; color: var(--dim); font-size: 11.5px; }
 /* What the turn took, under the answer it belongs to. */
 .turn-note { margin: 4px 0 12px; color: var(--dim); font-size: 10.5px; }

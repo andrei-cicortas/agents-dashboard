@@ -52,6 +52,8 @@ running, and the two settings that belong to the window.
 Panels tile the canvas, so there is always exactly enough room for all of them.
 
 - Drag the line between two panels to give one of them more space.
+- **Open in Explorer**, in a folder's or a panel's **...** menu, shows the
+  folder an agent is working in — only ever a folder already on screen.
 - **Split right** and **Split down** in a panel's **...** menu start another
   agent of the same kind beside it.
 - The grid button in the top bar has **Tidy**, which squares everything up
@@ -162,8 +164,10 @@ type the question and the chat is created on it, named after what you asked.
 - Enter sends, Shift+Enter starts a new line, and **Stop** abandons an answer.
 
 Answers are shown as they were written — headings, lists, tables and code
-blocks, each with a **Copy** button. Only `http`, `https` and `mailto`
-addresses are ever clickable, and a link opens in your own browser.
+blocks. Hovering an answer gives a **Copy** that takes the whole thing as the
+Markdown it was written in, and every code block has one of its own. Only
+`http`, `https` and `mailto` addresses are ever clickable, and a link opens in
+your own browser.
 
 Under each answer is a line saying what the turn took — how long, and how many
 tokens went in and came back. Hovering it gives roughly what that is worth at
@@ -274,6 +278,8 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
       gets nothing (no stray Escape).
 - [ ] Ctrl+K, type a few letters of a folder → Enter opens it on the Code tab.
 - [ ] Ctrl+K, type part of a chat name → Enter opens that chat on the Chat tab.
+- [ ] A folder's **...** → Open in Explorer → the folder opens in a window.
+- [ ] Hover an answer → Copy → it says Copied and pastes as Markdown.
 - [ ] Split a panel right, then down → the three tile with no gaps.
 - [ ] Drag a line between two panels → both resize, and neither can be dragged
       away to nothing.

@@ -5,6 +5,7 @@
 // levels, and there is nowhere to paste a path. It also opens as a separate
 // window that can end up behind the app. So the app browses folders itself.
 
+import { spawn as nodeSpawn } from 'node:child_process';
 import nodeFs from 'node:fs';
 import path from 'node:path';
 
@@ -61,4 +62,24 @@ export function listFolders({ path: folder, fs = nodeFs } = {}) {
     .map((entry) => ({ name: entry.name, path: path.win32.join(asked, entry.name) }))
     .sort(byName);
   return { path: asked, parent, entries: folders, error: null };
+}
+
+// Showing a folder in Explorer, which is where you go the moment you want to
+// look at what an agent has actually written.
+//
+// Only ever a folder the dashboard already knows about — a project, a panel's
+// folder, an agent's — so this is a shortcut to somewhere on screen rather
+// than a way to open anything at all on the disk.
+export function openFolder(folder, { spawn = nodeSpawn } = {}) {
+  if (typeof folder !== 'string' || !folder.trim()) return false;
+  // No shell: the path goes in as one argument, whatever is in it.
+  const child = spawn('explorer.exe', [path.win32.normalize(folder.trim())], {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: false,
+  });
+  // Explorer outlives the dashboard; nothing here waits for it.
+  child.on('error', () => {});
+  child.unref?.();
+  return true;
 }

@@ -7,13 +7,23 @@
 import { h } from './dom.js';
 import { richText } from './rich-text.js';
 import { turnLine } from '/shared/transcript.js';
+import { copyButton } from './clipboard.js';
 
 const TOOL_MARK = { running: '·', done: '✓', failed: '✕' };
+
+// An answer is the thing most likely to be wanted somewhere else — pasted into
+// a commit message, a file, a reply — and selecting formatted prose by hand
+// loses the Markdown it was written in. This copies what was actually written.
+function drawAnswer(text) {
+  return h('div', { class: 'answer' },
+    richText(text),
+    copyButton(() => text, { className: 'answer-copy', title: 'Copy this answer' }));
+}
 
 export function drawItem(item) {
   if (item.kind === 'said') {
     // What you asked sits in a slab, so the answer reads as the page itself.
-    return item.by === 'you' ? h('div', { class: 'bubble' }, item.text) : richText(item.text);
+    return item.by === 'you' ? h('div', { class: 'bubble' }, item.text) : drawAnswer(item.text);
   }
   if (item.kind === 'thought') return h('div', { class: 'thought' }, 'Thought about it');
   if (item.kind === 'failed') return h('div', { class: 'failed-line' }, item.text);

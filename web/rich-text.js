@@ -6,6 +6,7 @@
 
 import { h } from './dom.js';
 import { parseBlocks } from '/shared/markdown.js';
+import { copyButton } from './clipboard.js';
 
 function drawSpans(spans) {
   return spans.map((span) => {
@@ -25,18 +26,10 @@ function drawSpans(spans) {
 // Code is the part of an answer most likely to be wanted somewhere else, so it
 // comes with the one button that saves selecting it by hand.
 function drawCode(block) {
-  const copy = h('button', { class: 'code-copy' }, 'Copy');
-  copy.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(block.text);
-      copy.textContent = 'Copied';
-    } catch {
-      copy.textContent = 'Cannot copy';
-    }
-    setTimeout(() => { copy.textContent = 'Copy'; }, 1500);
-  });
   return h('div', { class: 'code-block' },
-    h('div', { class: 'code-head' }, h('span', { class: 'code-lang' }, block.lang || 'text'), copy),
+    h('div', { class: 'code-head' },
+      h('span', { class: 'code-lang' }, block.lang || 'text'),
+      copyButton(() => block.text, { title: 'Copy this code' })),
     h('pre', {}, h('code', {}, block.text)));
 }
 

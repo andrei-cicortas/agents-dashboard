@@ -293,6 +293,10 @@ const actions = {
     api.send('folders:list', { path: folderPath ?? '' });
   },
 
+  openFolder(path) {
+    api.send('folder:open', { path });
+  },
+
   removeProject(path) {
     api.send('project:remove', { path });
   },

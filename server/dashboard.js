@@ -11,7 +11,7 @@ import { insert, reconcile } from '../shared/tiling.js';
 import { webAddress } from '../shared/address.js';
 import { applyEvent, emptyTranscript } from '../shared/transcript.js';
 import { looksTyped } from '../shared/input.js';
-import { listFolders as listFoldersOnDisk } from './folders.js';
+import { listFolders as listFoldersOnDisk, openFolder as openFolderInExplorer } from './folders.js';
 
 const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 
@@ -45,6 +45,7 @@ export function createDashboard({
   pickFolder,
   folderExists = (dir) => fs.existsSync(dir),
   listFolders = listFoldersOnDisk,
+  openFolder = openFolderInExplorer,
   broadcast,
   requestStop = () => {},
   now = () => new Date(),
@@ -530,6 +531,19 @@ export function createDashboard({
     // which has no address bar and can end up behind the window.
     'folders:list'({ path: asked }, reply) {
       reply({ type: 'folders:listed', ...listFolders({ path: asked }) });
+    },
+
+    // Explorer, on a folder that is already on screen somewhere. Anything
+    // else is refused: this opens what the dashboard is showing, not whatever
+    // path a message happens to carry.
+    'folder:open'({ path: folder }) {
+      const known = [
+        ...projects.map((project) => project.path),
+        ...panels.map((panel) => panel.cwd),
+        ...profiles.map((profile) => profile.cwd),
+      ];
+      if (!known.some((candidate) => candidate && samePath(candidate, folder ?? ''))) return;
+      openFolder(folder);
     },
 
     'project:remove'({ path: projectPath }) {

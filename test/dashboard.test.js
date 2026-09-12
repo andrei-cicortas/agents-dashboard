@@ -39,6 +39,7 @@ function memoryStore(initial) {
 function setup({ initial = emptyState(), picked = null, pickFolder = async () => picked, userName = 'tester', folderExists = () => true, listFolders } = {}) {
   const store = memoryStore(initial);
   const manager = fakeAgentManager();
+  const opened = [];
   const sent = [];
   let ids = 0;
   let sessions = 0;
@@ -49,6 +50,7 @@ function setup({ initial = emptyState(), picked = null, pickFolder = async () =>
     pickFolder,
     folderExists,
     ...(listFolders ? { listFolders } : {}),
+    openFolder: (folder) => opened.push(folder),
     broadcast: (message) => sent.push(message),
     requestStop: () => sent.push({ type: 'stop-requested' }),
     now: () => new Date('2026-09-11T10:00:00.000Z'),
@@ -58,7 +60,7 @@ function setup({ initial = emptyState(), picked = null, pickFolder = async () =>
   });
   const lastState = () => sent.filter((m) => m.type === 'state').at(-1);
   const send = (message, clientId = 'window1') => dashboard.handleMessage(message, () => {}, clientId);
-  return { dashboard, store, manager, sent, lastState, send };
+  return { dashboard, store, manager, opened, sent, lastState, send };
 }
 
 const savedPanel = { id: 'p1', agentId: 'claude', cwd: GAME, sessionId: 's1', title: 'Old title' };
@@ -614,6 +616,36 @@ test('a restored panel of a self-naming agent is not given an invented session e
   const { dashboard, manager } = setup({ initial: saved });
   dashboard.start();
   assert.deepEqual(manager.calls[0][1], { panelId: 'p1', agentId: 'codex', cwd: GAME, sessionId: null, mode: 'start' });
+});
+
+test('a folder the dashboard is showing can be opened in Explorer', async () => {
+  const { opened, send } = setup();
+  await send({ type: 'project:add', path: GAME });
+  await send({ type: 'folder:open', path: GAME });
+  assert.deepEqual(opened, [GAME]);
+});
+
+test('the folder of a running panel counts as one it is showing', async () => {
+  const { dashboard, opened, send } = setup({ initial: withPanel() });
+  dashboard.start();
+  await send({ type: 'folder:open', path: GAME });
+  assert.deepEqual(opened, [GAME]);
+});
+
+test('the same folder written differently is still the same folder', async () => {
+  const { opened, send } = setup();
+  await send({ type: 'project:add', path: GAME });
+  await send({ type: 'folder:open', path: 'c:/games/my game' });
+  assert.equal(opened.length, 1);
+});
+
+test('a folder it is not showing is not opened, whoever asks', async () => {
+  const { opened, send } = setup();
+  await send({ type: 'project:add', path: GAME });
+  await send({ type: 'folder:open', path: 'C:\\Windows\\System32' });
+  await send({ type: 'folder:open', path: '' });
+  await send({ type: 'folder:open' });
+  assert.deepEqual(opened, []);
 });
 
 test('the app can ask what folders are inside one, to offer its own browser', async () => {

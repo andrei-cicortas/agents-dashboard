@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { listFolders } from '../server/folders.js';
+import { listFolders, openFolder } from '../server/folders.js';
 
 let counter = 0;
 function tree(shape) {
@@ -79,4 +79,42 @@ test("Windows' own bookkeeping folders are left out, so the real ones are on top
 test('entries come back in the order a person reads them', () => {
   const root = tree({ Zebra: 'dir', apple: 'dir', Mango: 'dir' });
   assert.deepEqual(listFolders({ path: root }).entries.map((e) => e.name), ['apple', 'Mango', 'Zebra']);
+});
+
+function fakeSpawn() {
+  const calls = [];
+  const spawn = (command, args, options) => {
+    calls.push({ command, args, options });
+    return { on() {}, unref() {} };
+  };
+  return { calls, spawn };
+}
+
+test('opening a folder hands the path to Explorer as one argument, with no shell', () => {
+  const { calls, spawn } = fakeSpawn();
+  assert.equal(openFolder('C:\\Claude\\Spider Tag', { spawn }), true);
+  assert.equal(calls[0].command, 'explorer.exe');
+  assert.deepEqual(calls[0].args, ['C:\\Claude\\Spider Tag'], 'a space in the name is not a second argument');
+  assert.equal(calls[0].options.shell, undefined, 'nothing is handed to a shell to re-read');
+});
+
+test('a path with slashes the other way round is still the same folder', () => {
+  const { calls, spawn } = fakeSpawn();
+  openFolder('C:/Claude/Spider Tag/', { spawn });
+  assert.deepEqual(calls[0].args, ['C:\\Claude\\Spider Tag\\']);
+});
+
+test('Explorer outlives the dashboard, so it is let go of', () => {
+  const { calls, spawn } = fakeSpawn();
+  openFolder('C:\\Claude', { spawn });
+  assert.equal(calls[0].options.detached, true);
+  assert.equal(calls[0].options.stdio, 'ignore');
+});
+
+test('nothing to open opens nothing', () => {
+  const { calls, spawn } = fakeSpawn();
+  assert.equal(openFolder('', { spawn }), false);
+  assert.equal(openFolder(null, { spawn }), false);
+  assert.equal(openFolder('   ', { spawn }), false);
+  assert.deepEqual(calls, []);
 });

@@ -49,6 +49,8 @@ export function createSidebar(root, actions) {
         event.stopPropagation();
         openMenu(moreButton, [
           { label: project.pinned ? 'Unpin' : 'Pin to top', onSelect: () => actions.pinProject(project.path, !project.pinned) },
+          { label: 'Open in Explorer', onSelect: () => actions.openFolder(project.path) },
+          { label: 'Copy folder path', onSelect: () => navigator.clipboard.writeText(project.path) },
           {
             label: panels.length ? 'Remove from list (close its agents first)' : 'Remove from list',
             disabled: panels.length > 0,

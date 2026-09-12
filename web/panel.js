@@ -37,6 +37,7 @@ export function createPanel(initialPanel, actions, theme) {
       { label: 'Split down', onSelect: () => actions.splitPanel(panel, 'column') },
       { label: 'Find in output…', onSelect: () => openFind() },
       { label: 'Restart agent', onSelect: () => actions.restartPanel(panel.id) },
+      { label: 'Open in Explorer', onSelect: () => actions.openFolder(panel.cwd) },
       { label: 'Copy folder path', onSelect: () => navigator.clipboard.writeText(panel.cwd) },
     ])),
   }, icon('more'));
