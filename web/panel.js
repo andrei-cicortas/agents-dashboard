@@ -5,16 +5,17 @@ import { FitAddon } from '/vendor/addon-fit/lib/addon-fit.mjs';
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
-import { panelLabel } from '/shared/labels.js';
+import { folderName, panelLabel } from '/shared/labels.js';
 import { dotClass } from '/shared/status.js';
+import { agentColour, agentInitial } from './agent-mark.js';
 
 const TERMINAL_THEME = {
-  background: '#0f0f11',
-  foreground: '#e6e6e6',
-  cursor: '#e6e6e6',
-  cursorAccent: '#0f0f11',
-  selectionBackground: '#3a3a42',
-  black: '#1a1a1e',
+  background: '#141414',
+  foreground: '#fafafa',
+  cursor: '#fafafa',
+  cursorAccent: '#141414',
+  selectionBackground: 'rgba(255, 255, 255, 0.18)',
+  black: '#1f1f1f',
   red: '#f87171',
   green: '#4ade80',
   yellow: '#facc15',
@@ -44,6 +45,8 @@ export function createPanel(initialPanel, actions) {
   };
 
   const dot = h('span', { class: 'dot' });
+  const markInitial = h('span', {});
+  const mark = h('span', { class: 'panel-mark' }, markInitial, dot);
   const title = h('span', { class: 'panel-title' });
   const moreButton = h('button', {
     class: 'icon-button',
@@ -67,8 +70,7 @@ export function createPanel(initialPanel, actions) {
 
   const element = h('div', { class: 'panel', dataset: { panelId: panel.id } },
     h('div', { class: 'panel-header', onDblclick: () => actions.toggleMaximize(panel.id) },
-      dot,
-      icon('terminal', { size: 14 }),
+      mark,
       title,
       h('div', { class: 'panel-actions' }, moreButton, maximizeButton, plusButton, closeButton)),
     h('div', { class: 'panel-body' }, host, overlay));
@@ -135,8 +137,14 @@ export function createPanel(initialPanel, actions) {
   function update(nextPanel, { focused, maximized }) {
     panel = nextPanel;
     dot.className = `dot ${dotClass(panel)}`;
-    title.textContent = panelLabel(panel);
-    title.title = panel.cwd;
+    mark.style.background = agentColour(panel.agentId);
+    mark.title = panel.agentName;
+    markInitial.textContent = agentInitial(panel);
+    // The mark says which agent this is, so the header can spend its width on
+    // the folder; the full label stays in the tooltip.
+    title.textContent = folderName(panel.cwd);
+    title.title = `${panelLabel(panel)}
+${panel.cwd}`;
     element.classList.toggle('focused', focused);
     element.classList.toggle('attention', panel.attention);
     if (maximized !== shownMaximized) {

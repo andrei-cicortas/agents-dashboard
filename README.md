@@ -81,7 +81,9 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
 - [ ] Start Claude Code → the panel shows Claude's prompt; send a message and get a reply.
 - [ ] When Claude finishes, the bell badge goes up and says "finished".
 - [ ] When Claude asks for permission, the dot turns orange and the bell says "needs your input".
-- [ ] The panel title changes to the conversation topic.
+- [ ] The sidebar row changes to the conversation topic (the panel header keeps
+      showing the folder, with the agent's coloured mark next to it).
+- [ ] The Agent and Chat tabs show their "coming soon" placeholder.
 - [ ] Start Codex (or see the install hint if it is not installed).
 - [ ] Close the window, wait, open the shortcut again → the panels are still there with their output.
 - [ ] Power button → confirm → "Dashboard stopped".

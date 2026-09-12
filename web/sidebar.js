@@ -1,19 +1,28 @@
-// Workspaces sidebar: pinned and other projects, with their agents underneath.
+// Workspaces sidebar: pinned and other projects, with their agents underneath,
+// and a status row in the footer.
 
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { panelLabel } from '/shared/labels.js';
-import { dotClass, sameFolder } from '/shared/status.js';
+import { dotClass, isActive, sameFolder } from '/shared/status.js';
+
+const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 export function createSidebar(root, actions) {
+  const scroll = h('div', { class: 'sidebar-scroll' });
+  const footerText = h('span', { class: 'label' });
+  const footer = h('div', { class: 'sidebar-footer' }, footerText);
+
   function agentRow(panel, model) {
     const selected = panel.id === model.focusedPanelId;
     return h('div', {
       class: `agent-row${selected ? ' selected' : ''}`,
-      title: panelLabel(panel),
+      // The row shows what the agent is doing when it has said so; the full
+      // label and folder stay in the tooltip.
+      title: `${panelLabel(panel)}\n${panel.cwd}`,
       onClick: () => actions.focusPanel(panel.id),
-    }, h('span', { class: `dot ${dotClass(panel)}` }), h('span', { class: 'label' }, panelLabel(panel)));
+    }, h('span', { class: `dot ${dotClass(panel)}` }), h('span', { class: 'label' }, panel.title || panel.agentName));
   }
 
   function projectBlock(project, model) {
@@ -58,13 +67,15 @@ export function createSidebar(root, actions) {
     return h('div', { class: 'project' }, row, open ? panels.map((panel) => agentRow(panel, model)) : []);
   }
 
+  const header = h('div', { class: 'sidebar-header' },
+    h('span', { class: 'title' }, 'Workspaces'),
+    h('button', { class: 'icon-button', title: 'Add a project folder', onClick: () => actions.addProject() }, icon('plus')));
+  root.replaceChildren(header, scroll, footer);
+
   return {
     render(model) {
       const { state } = model;
       if (!state) return;
-      const header = h('div', { class: 'sidebar-header' },
-        'Workspaces',
-        h('button', { class: 'icon-button', title: 'Add a project folder', onClick: () => actions.addProject() }, icon('plus')));
 
       const pinned = state.projects.filter((project) => project.pinned);
       const others = state.projects.filter((project) => !project.pinned);
@@ -77,7 +88,10 @@ export function createSidebar(root, actions) {
       if (!state.projects.length) {
         content.push(h('div', { class: 'sidebar-empty' }, 'No workspaces yet. Click + to add a project folder.'));
       }
-      root.replaceChildren(header, ...content);
+      scroll.replaceChildren(...content);
+
+      const running = state.panels.filter(isActive).length;
+      footerText.textContent = `${plural(running, 'agent')} running · ${plural(state.projects.length, 'workspace')}`;
     },
   };
 }

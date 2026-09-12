@@ -160,6 +160,7 @@ const grid = createGrid(byId('grid'), byId('empty'), actions);
 function render() {
   byId('app').classList.toggle('sidebar-collapsed', model.sidebarCollapsed);
   byId('code-view').hidden = model.tab !== 'code';
+  byId('agent-view').hidden = model.tab !== 'agent';
   byId('chat-view').hidden = model.tab !== 'chat';
   const unread = model.state?.unread ?? 0;
   document.title = unread ? `(${unread}) Agents Dashboard` : 'Agents Dashboard';
