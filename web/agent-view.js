@@ -8,6 +8,7 @@
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
+import { richText } from './rich-text.js';
 
 const STATUS = {
   idle: { label: 'Ready', tone: 'ready' },
@@ -100,7 +101,7 @@ export function createAgentView(root, actions) {
     if (item.kind === 'said') {
       return item.by === 'you'
         ? h('div', { class: 'bubble' }, item.text)
-        : h('div', { class: 'prose' }, item.text);
+        : richText(item.text);
     }
     if (item.kind === 'thought') return h('div', { class: 'thought' }, 'Thought about it');
     if (item.kind === 'failed') return h('div', { class: 'failed-line' }, item.text);
