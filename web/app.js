@@ -477,7 +477,8 @@ const actions = {
 // The few things worth starting from the same box you search in.
 const COMMANDS = [
   { id: 'new-chat', label: 'New chat', hint: 'Ctrl+N on the Chat tab', run: () => { actions.setTab('chat'); actions.newChat(); } },
-  { id: 'add-folder', label: 'Add a project folder', hint: 'Command', run: () => { actions.setTab('code'); sidebar.openPicker(); } },
+  // The browser lives in the sidebar, so it has to be there to be used.
+  { id: 'add-folder', label: 'Add a project folder', hint: 'Command', run: () => { actions.setTab('code'); if (model.sidebarCollapsed) actions.toggleSidebar(); sidebar.openPicker(); } },
   { id: 'tidy', label: 'Tidy the panels', hint: 'Command', run: () => { actions.setTab('code'); actions.tidyLayout(); } },
   { id: 'theme', label: 'Switch theme', hint: 'Dark and Light', run: () => actions.setTheme(otherTheme(model.theme).id) },
   { id: 'sidebar', label: 'Show or hide the sidebar', hint: 'Ctrl+B', run: () => actions.toggleSidebar() },
