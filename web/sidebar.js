@@ -88,15 +88,16 @@ export function createSidebar(root, actions) {
     }, icon('more', { size: 14 }));
 
     // Clicking the row opens the workspace on the canvas; the chevron on its
-    // own only folds the list of panels underneath it.
-    const chevron = h('button', {
+    // own only folds the list of panels underneath it. A folder with nothing
+    // to fold gets a blank of the same width, so every name stays in line.
+    const chevron = panels.length ? h('button', {
       class: 'icon-button chevron',
       title: open ? 'Hide its agents' : 'Show its agents',
       onClick: (event) => {
         event.stopPropagation();
         actions.toggleProject(project.path);
       },
-    }, icon(open ? 'chevronDown' : 'chevronRight', { size: 14 }));
+    }, icon(open ? 'chevronDown' : 'chevronRight', { size: 14 })) : h('span', { class: 'chevron-space' });
 
     const selected = sameFolder(project.path, model.selectedWorkspace ?? '');
     const row = h('div', {
@@ -109,7 +110,7 @@ export function createSidebar(root, actions) {
       h('span', { class: 'count' }, panels.length ? String(panels.length) : ''),
       h('span', { class: 'row-actions' }, addButton, moreButton));
 
-    return h('div', { class: 'project' }, row, open ? panels.map((panel) => agentRow(panel, model)) : []);
+    return h('div', { class: 'project' }, row, open && panels.length ? panels.map((panel) => agentRow(panel, model)) : []);
   }
 
   const header = h('div', { class: 'sidebar-header' },
