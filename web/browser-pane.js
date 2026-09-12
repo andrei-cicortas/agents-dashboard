@@ -96,11 +96,12 @@ export function createBrowserPane(initialPanel, actions) {
   return {
     element,
     update,
-    // A web page has no terminal to write to, size, or theme.
+    // A web page has no terminal to write to, size, theme, or search.
     write() {},
     replay() {},
     fit() {},
     setTheme() {},
+    openFind() {},
     focusTerminal: () => frame.focus(),
     dispose() {
       element.remove();

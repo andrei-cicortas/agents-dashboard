@@ -675,6 +675,8 @@ button { font: inherit; color: inherit; }
   padding: 10px 10px 10px 14px;
 }
 .agent-head-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.agent-title,
+.agent-powered { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-title { font-size: 13px; font-weight: 650; letter-spacing: -0.01em; }
 .agent-powered { color: var(--dim); font-size: 11px; }
 

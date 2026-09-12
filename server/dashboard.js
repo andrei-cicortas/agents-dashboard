@@ -266,6 +266,10 @@ export function createDashboard({
   // the CLI runs and what it is allowed to do. `find` looks the conversation
   // up again on every event, because it may have been closed mid-answer.
   function runTurn(conversation, { kind, cwd, instructions, tools, model }, find) {
+    // Killing the CLI makes it exit badly, and that arrives here as a failed
+    // run. A turn somebody stopped on purpose is not a failure: it must not
+    // write "the agent exited" into the transcript, nor ring the bell.
+    let abandoned = false;
     const run = agentRunner.run({
       cwd,
       prompt: conversation.items.at(-1).text,
@@ -288,6 +292,7 @@ export function createDashboard({
         commit();
       },
       onDone({ ok, message }) {
+        if (abandoned) return;
         runs.delete(conversation.id);
         const live = find(conversation.id);
         if (!live) return;
@@ -299,7 +304,12 @@ export function createDashboard({
         commit();
       },
     });
-    runs.set(conversation.id, run);
+    runs.set(conversation.id, {
+      cancel() {
+        abandoned = true;
+        run.cancel();
+      },
+    });
   }
 
   function stopRun(id) {

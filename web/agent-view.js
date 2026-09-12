@@ -9,6 +9,7 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { createTranscript } from './transcript-view.js';
+import { createComposer } from './composer.js';
 
 const STATUS = {
   idle: { label: 'Ready', tone: 'ready' },
@@ -25,13 +26,14 @@ export function createAgentView(root, actions) {
   const tabs = h('div', { class: 'thread-tabs' });
   const transcript = createTranscript({ empty: 'Nothing yet. Ask it something.' });
 
-  const composer = h('textarea', {
-    class: 'composer',
-    rows: '1',
+  const composer = createComposer({
     placeholder: 'Ask this agent to do anything',
+    onSend: (text) => {
+      if (!thread) return;
+      transcript.follow();
+      actions.sendToThread(thread.id, text);
+    },
   });
-  const sendButton = h('button', { class: 'icon-button send', title: 'Send' }, icon('send', { size: 15 }));
-  const composerRow = h('div', { class: 'composer-row' }, composer, sendButton);
   const footNote = h('div', { class: 'agent-foot' });
 
   const panel = h('div', { class: 'agent-panel' },
@@ -42,7 +44,7 @@ export function createAgentView(root, actions) {
       gear),
     tabs,
     transcript.element,
-    composerRow,
+    composer.element,
     footNote);
 
   const blank = h('div', { class: 'empty' },
@@ -54,28 +56,6 @@ export function createAgentView(root, actions) {
   // What the view is looking at, so handlers do not close over a stale render.
   let profile = null;
   let thread = null;
-
-  function send() {
-    const text = composer.value.trim();
-    if (!thread || !text || thread.status === 'working') return;
-    composer.value = '';
-    composer.style.height = 'auto';
-    transcript.follow();
-    actions.sendToThread(thread.id, text);
-  }
-
-  composer.addEventListener('keydown', (event) => {
-    // Enter sends, as it does in every chat; a newline needs Shift.
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      send();
-    }
-  });
-  composer.addEventListener('input', () => {
-    composer.style.height = 'auto';
-    composer.style.height = `${Math.min(composer.scrollHeight, 160)}px`;
-  });
-  sendButton.addEventListener('click', send);
 
   gear.replaceChildren(icon('settings', { size: 15 }));
   gear.addEventListener('click', () => {
@@ -140,18 +120,17 @@ export function createAgentView(root, actions) {
       if (!thread) {
         transcript.element.replaceChildren(h('div', { class: 'empty-text' }, 'No thread open. Click + above to start one.'));
         transcript.reset();
-        composerRow.hidden = true;
+        composer.element.hidden = true;
         footNote.textContent = profile.cwd;
         return;
       }
-      composerRow.hidden = false;
+      composer.element.hidden = false;
+      composer.own(thread.id);
 
       transcript.show(thread);
 
       const working = thread.status === 'working';
-      composer.disabled = working;
-      composer.placeholder = working ? 'Working…' : 'Ask this agent to do anything';
-      sendButton.hidden = working;
+      composer.setWorking(working);
       footNote.replaceChildren(h('span', {}, profile.cwd), working
         ? h('button', { class: 'link-button', onClick: () => actions.cancelThread(thread.id) }, 'Stop')
         : h('span', {}));

@@ -179,6 +179,22 @@ test('stopping a chat cancels the run and leaves it ready', async () => {
   assert.equal(t.state().chats[0].status, 'idle');
 });
 
+test('a turn you stopped is not reported as one that failed', async () => {
+  const t = setup();
+  const chat = await withChat(t);
+  await t.send({ type: 'chat:send', chatId: chat.id, text: 'hello' });
+  const { handlers } = t.runner.last();
+  await t.send({ type: 'chat:cancel', chatId: chat.id });
+
+  // Killing the CLI makes it exit badly, which arrives here afterwards.
+  handlers.onDone({ ok: false, message: 'The agent exited with code 1.' });
+
+  const live = t.state().chats[0];
+  assert.equal(live.status, 'idle');
+  assert.equal(live.items.at(-1).kind, 'said', JSON.stringify(live.items));
+  assert.deepEqual(t.state().notifications, []);
+});
+
 test('an event arriving after the chat was deleted is ignored, not thrown on', async () => {
   const t = setup();
   const chat = await withChat(t);

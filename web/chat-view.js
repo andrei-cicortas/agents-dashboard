@@ -10,6 +10,7 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { createTranscript } from './transcript-view.js';
+import { createComposer } from './composer.js';
 
 const STATUS = {
   idle: { label: 'Ready', tone: 'ready' },
@@ -39,9 +40,13 @@ export function createChatView(root, actions) {
   const more = h('button', { class: 'icon-button', title: 'This chat' }, icon('more', { size: 15 }));
   const transcript = createTranscript({ empty: 'Nothing yet. Ask it something.' });
 
-  const composer = h('textarea', { class: 'composer', rows: '1', placeholder: 'Ask anything' });
-  const sendButton = h('button', { class: 'icon-button send', title: 'Send' }, icon('send', { size: 15 }));
-  const composerRow = h('div', { class: 'composer-row' }, composer, sendButton);
+  const composer = createComposer({
+    placeholder: 'Ask anything',
+    onSend: (text) => {
+      transcript.follow();
+      actions.sendChat(text);
+    },
+  });
   const footNote = h('div', { class: 'agent-foot plain' });
 
   const openers = h('div', { class: 'openers' }, OPENERS.map((text) => h('button', {
@@ -60,35 +65,13 @@ export function createChatView(root, actions) {
       more),
     transcript.element,
     openers,
-    composerRow,
+    composer.element,
     footNote);
 
   root.replaceChildren(panel);
 
   // What the view is looking at, so handlers do not close over a stale render.
   let chat = null;
-
-  function send() {
-    const text = composer.value.trim();
-    if (!text || chat?.status === 'working') return;
-    composer.value = '';
-    composer.style.height = 'auto';
-    transcript.follow();
-    actions.sendChat(text);
-  }
-
-  composer.addEventListener('keydown', (event) => {
-    // Enter sends, as it does in every chat; a newline needs Shift.
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      send();
-    }
-  });
-  composer.addEventListener('input', () => {
-    composer.style.height = 'auto';
-    composer.style.height = `${Math.min(composer.scrollHeight, 160)}px`;
-  });
-  sendButton.addEventListener('click', send);
 
   modelSelect.addEventListener('change', () => {
     if (chat) actions.setChatModel(chat.id, modelSelect.value);
@@ -143,10 +126,11 @@ export function createChatView(root, actions) {
       // conversation they would only be in the way.
       openers.hidden = Boolean(chat);
 
+      // A chat that does not exist yet still has a draft of its own: the
+      // one you are about to start.
+      composer.own(chat?.id ?? null);
       const working = chat?.status === 'working';
-      composer.disabled = working;
-      composer.placeholder = working ? 'Answering…' : 'Ask anything';
-      sendButton.hidden = working;
+      composer.setWorking(working, 'Answering…');
       footNote.replaceChildren(
         h('span', {}, 'Enter sends · Shift+Enter starts a new line'),
         working
