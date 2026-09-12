@@ -194,6 +194,10 @@ const actions = {
     api.send('project:add', folderPath ? { path: folderPath } : {});
   },
 
+  listFolders(folderPath) {
+    api.send('folders:list', { path: folderPath ?? '' });
+  },
+
   removeProject(path) {
     api.send('project:remove', { path });
   },
@@ -412,6 +416,8 @@ const api = connect({
       canvas.write(message.panelId, message.data);
     } else if (message.type === 'panel:replay') {
       canvas.replay(message.panelId, message.data);
+    } else if (message.type === 'folders:listed') {
+      sidebar.folderList(message);
     } else if (message.type === 'project:add-failed') {
       sidebar.addFailed(message.message);
     } else if (message.type === 'server:stopped') {

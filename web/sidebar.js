@@ -6,6 +6,7 @@ import { icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { panelLabel } from '/shared/labels.js';
 import { dotClass, sameFolder } from '/shared/status.js';
+import { createFolderPicker } from './folder-picker.js';
 
 export function createSidebar(root, actions) {
   const scroll = h('div', { class: 'sidebar-scroll' });
@@ -83,74 +84,37 @@ export function createSidebar(root, actions) {
     return h('div', { class: 'project' }, row, open && panels.length ? panels.map((panel) => agentRow(panel, model)) : []);
   }
 
-  // Adding a folder two ways: paste the path, which is quicker when you have
-  // it, or browse for it. The message says why a path was refused.
-  const pathInput = h('input', {
-    class: 'field',
-    type: 'text',
-    spellcheck: 'false',
-    placeholder: 'Paste a folder path',
-    onKeydown: (event) => {
-      if (event.key === 'Escape') closeAdd();
-      if (event.key !== 'Enter') return;
-      const typed = pathInput.value.trim();
-      if (typed) actions.addProject(typed);
-    },
-  });
-  const addMessage = h('div', { class: 'add-message' });
-  addMessage.hidden = true;
-  const addForm = h('div', { class: 'add-folder' },
-    pathInput,
-    addMessage,
-    h('div', { class: 'form-actions' },
-      h('button', { class: 'button', onClick: () => actions.addProject() }, 'Browse…'),
-      h('button', {
-        class: 'button primary',
-        onClick: () => {
-          const typed = pathInput.value.trim();
-          if (typed) actions.addProject(typed);
-        },
-      }, 'Add')));
-  addForm.hidden = true;
-
-  function closeAdd() {
-    addForm.hidden = true;
-    pathInput.value = '';
-    addMessage.hidden = true;
-  }
+  const picker = createFolderPicker(actions);
 
   const addButton = h('button', {
     class: 'icon-button',
     title: 'Add a project folder',
-    onClick: () => {
-      addForm.hidden = !addForm.hidden;
-      addMessage.hidden = true;
-      if (!addForm.hidden) pathInput.focus();
-    },
+    onClick: () => picker.toggle(),
   }, icon('plus'));
 
   const header = h('div', { class: 'sidebar-header' },
     h('span', { class: 'title' }, 'Workspaces'),
     addButton);
-  root.replaceChildren(header, addForm, scroll);
+  root.replaceChildren(header, picker.element, scroll);
 
   return {
-    // Shown under the box when the server would not take the path.
+    // Shown under the browser when the server would not take the path.
     addFailed(message) {
-      addForm.hidden = false;
-      addMessage.textContent = message;
-      addMessage.hidden = false;
-      pathInput.focus();
-      pathInput.select();
+      picker.failed(message);
+    },
+
+    // A reply to folders:list, handed straight to the browser.
+    folderList(payload) {
+      picker.show(payload);
     },
 
     render(model) {
       const { state } = model;
       if (!state) return;
 
-      // The folder arrived, so the box has done its job.
-      const typed = pathInput.value.trim();
-      if (typed && state.projects.some((project) => sameFolder(project.path, typed))) closeAdd();
+      // The folder arrived, so the browser has done its job.
+      const chosen = picker.current();
+      if (picker.isOpen() && chosen && state.projects.some((project) => sameFolder(project.path, chosen))) picker.close();
 
       const pinned = state.projects.filter((project) => project.pinned);
       const others = state.projects.filter((project) => !project.pinned);

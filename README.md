@@ -28,8 +28,8 @@ This puts an **Agents Dashboard** shortcut on your desktop.
 ## Daily use
 
 1. Double-click **Agents Dashboard** on the desktop.
-2. Click **+** next to "Workspaces". Paste a folder path, or **Browse…** for
-   one.
+2. Click **+** next to "Workspaces". Walk down to the folder — it starts at the
+   drives — or paste its path and press Enter, then **Add this folder**.
 3. Hover the project, click **+**, and pick Claude Code or Codex.
 4. Type your task into the panel's terminal.
 5. The bell shows when an agent finishes or needs your input.

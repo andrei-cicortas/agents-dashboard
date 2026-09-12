@@ -11,6 +11,7 @@ import { insert, reconcile } from '../shared/tiling.js';
 import { webAddress } from '../shared/address.js';
 import { applyEvent, emptyTranscript } from '../shared/transcript.js';
 import { looksTyped } from '../shared/input.js';
+import { listFolders as listFoldersOnDisk } from './folders.js';
 
 const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 
@@ -27,6 +28,7 @@ export function createDashboard({
   agents,
   pickFolder,
   folderExists = (dir) => fs.existsSync(dir),
+  listFolders = listFoldersOnDisk,
   broadcast,
   requestStop = () => {},
   now = () => new Date(),
@@ -356,6 +358,12 @@ export function createDashboard({
       } finally {
         addingProject = false;
       }
+    },
+
+    // The app browses folders itself rather than opening the Windows dialog,
+    // which has no address bar and can end up behind the window.
+    'folders:list'({ path: asked }, reply) {
+      reply({ type: 'folders:listed', ...listFolders({ path: asked }) });
     },
 
     'project:remove'({ path: projectPath }) {

@@ -36,7 +36,7 @@ function memoryStore(initial) {
   };
 }
 
-function setup({ initial = emptyState(), picked = null, pickFolder = async () => picked, userName = 'tester', folderExists = () => true } = {}) {
+function setup({ initial = emptyState(), picked = null, pickFolder = async () => picked, userName = 'tester', folderExists = () => true, listFolders } = {}) {
   const store = memoryStore(initial);
   const manager = fakeAgentManager();
   const sent = [];
@@ -48,6 +48,7 @@ function setup({ initial = emptyState(), picked = null, pickFolder = async () =>
     agents,
     pickFolder,
     folderExists,
+    ...(listFolders ? { listFolders } : {}),
     broadcast: (message) => sent.push(message),
     requestStop: () => sent.push({ type: 'stop-requested' }),
     now: () => new Date('2026-09-11T10:00:00.000Z'),
@@ -613,4 +614,19 @@ test('a restored panel of a self-naming agent is not given an invented session e
   const { dashboard, manager } = setup({ initial: saved });
   dashboard.start();
   assert.deepEqual(manager.calls[0][1], { panelId: 'p1', agentId: 'codex', cwd: GAME, sessionId: null, mode: 'start' });
+});
+
+test('the app can ask what folders are inside one, to offer its own browser', async () => {
+  const replies = [];
+  const { dashboard } = setup({
+    listFolders: ({ path: asked }) => ({ path: asked, parent: null, entries: [{ name: 'src', path: 'X' }], error: null }),
+  });
+  await dashboard.handleMessage({ type: 'folders:list', path: 'C:\\Games' }, (m) => replies.push(m));
+  assert.deepEqual(replies.at(-1), {
+    type: 'folders:listed',
+    path: 'C:\\Games',
+    parent: null,
+    entries: [{ name: 'src', path: 'X' }],
+    error: null,
+  });
 });
