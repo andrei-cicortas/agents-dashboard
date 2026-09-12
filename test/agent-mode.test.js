@@ -154,6 +154,45 @@ test('a thread that failed says so, and can be used again', async () => {
   assert.equal(t.state().threads[0].status, 'working');
 });
 
+test('a thread that finishes while you are on another tab rings the bell', async () => {
+  const t = setup();
+  const { threadId } = await withThread(t);
+  await t.send({ type: 'thread:send', threadId, text: 'go' });
+  t.runner.last().handlers.onDone({ ok: true, message: null });
+
+  const [notification] = t.state().notifications;
+  assert.equal(notification.kind, 'thread');
+  assert.equal(notification.targetId, threadId);
+  assert.equal(t.state().unread, 1);
+});
+
+test('a thread you are watching finishes without ringing it', async () => {
+  const t = setup();
+  const { threadId } = await withThread(t);
+  await t.send({ type: 'ui:focus', kind: 'thread', targetId: threadId });
+  await t.send({ type: 'thread:send', threadId, text: 'go' });
+  t.runner.last().handlers.onDone({ ok: true, message: null });
+  assert.equal(t.state().unread, 0);
+});
+
+test('closing a thread takes its notifications with it', async () => {
+  const t = setup();
+  const { threadId } = await withThread(t);
+  await t.send({ type: 'thread:send', threadId, text: 'go' });
+  t.runner.last().handlers.onDone({ ok: true, message: null });
+  await t.send({ type: 'thread:remove', threadId });
+  assert.deepEqual(t.state().notifications, []);
+});
+
+test('removing an agent takes the notifications of all its threads', async () => {
+  const t = setup();
+  const { profile, threadId } = await withThread(t);
+  await t.send({ type: 'thread:send', threadId, text: 'go' });
+  t.runner.last().handlers.onDone({ ok: true, message: null });
+  await t.send({ type: 'profile:remove', profileId: profile.id });
+  assert.deepEqual(t.state().notifications, []);
+});
+
 test('a second message while the agent is still working is ignored', async () => {
   const t = setup();
   const { threadId } = await withThread(t);

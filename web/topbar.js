@@ -6,6 +6,7 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { sameFolder } from '/shared/status.js';
+import { TAB_OF_KIND } from '/shared/labels.js';
 
 const TABS = [
   { id: 'agent', label: 'Agent' },
@@ -26,11 +27,14 @@ export function createTopbar(root, actions) {
       { label: '4 columns', onSelect: () => actions.tidyLayout(4) },
     ]),
   }, icon('layout'));
-  const buttons = TABS.map((tab) => h('button', {
+  // A dot on the tab, so news on a tab you are not looking at is visible
+  // without opening the bell to find out which one it was.
+  const dots = TABS.map(() => h('span', { class: 'tab-dot' }));
+  const buttons = TABS.map((tab, index) => h('button', {
     class: 'tab',
     role: 'tab',
     onClick: () => actions.setTab(tab.id),
-  }, tab.label));
+  }, tab.label, dots[index]));
 
   // Which folder the agents on the canvas are working in. The canvas shows one
   // workspace at a time, so without this there is nothing on screen that says
@@ -57,10 +61,21 @@ export function createTopbar(root, actions) {
       workspace.title = open ? `The agents below work in ${open.path}` : 'Click a folder on the left to open it';
       workspace.classList.toggle('empty', !open);
 
+      // Unread notifications, counted against the tab each came from.
+      const waiting = {};
+      for (const notification of model.state?.notifications ?? []) {
+        if (notification.read) continue;
+        const tab = TAB_OF_KIND[notification.kind];
+        if (tab) waiting[tab] = (waiting[tab] ?? 0) + 1;
+      }
+
       TABS.forEach((tab, index) => {
         const active = model.tab === tab.id;
         buttons[index].classList.toggle('active', active);
         buttons[index].setAttribute('aria-selected', String(active));
+        const count = active ? 0 : (waiting[tab.id] ?? 0);
+        dots[index].hidden = count === 0;
+        buttons[index].title = count ? `${count} waiting on ${tab.label}` : '';
       });
     },
   };

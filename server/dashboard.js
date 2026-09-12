@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { addNotification, markRead, markAllRead, unreadCount, removeForPanel } from './notifications.js';
+import { addNotification, markRead, markAllRead, unreadCount, removeFor, migrate } from './notifications.js';
 import { insert, reconcile } from '../shared/tiling.js';
 import { webAddress } from '../shared/address.js';
 import { applyEvent, emptyTranscript } from '../shared/transcript.js';
@@ -75,9 +75,25 @@ export function createDashboard({
   // Guards against a second folder-picker process spawning while one is
   // already open (each extra click otherwise stacks another hidden dialog).
   let addingProject = false;
-  // Panel each connected window reports as focused (clientId -> panelId).
-  // A window that is hidden, unfocused, or closed has no entry.
+  // What each connected window is looking at, as clientId -> { kind, targetId }
+  // — a terminal, a thread or a chat. A window that is hidden, unfocused or
+  // closed has no entry, so nothing it is showing counts as seen.
   const focusByClient = new Map();
+
+  const isWatched = (kind, targetId) => [...focusByClient.values()]
+    .some((at) => at.kind === kind && at.targetId === targetId);
+
+  // Rings the bell, unless somebody is looking straight at the thing already.
+  function notify(kind, targetId, event) {
+    notifications = addNotification(notifications, {
+      id: newId(),
+      kind,
+      targetId,
+      event,
+      at: now().toISOString(),
+      read: isWatched(kind, targetId),
+    });
+  }
 
   const agentName = (agentId) => agents.find((agent) => agent.id === agentId)?.name ?? agentId;
   // Codex picks its own session and ignores anything we pass, so a panel of
@@ -212,7 +228,7 @@ export function createDashboard({
   function start() {
     const saved = store.load();
     projects = saved.projects;
-    notifications = saved.notifications;
+    notifications = migrate(saved.notifications);
     layouts = saved.layouts ?? {};
     profiles = saved.profiles ?? [];
     threads = (saved.threads ?? []).map((thread) => ({
@@ -249,7 +265,7 @@ export function createDashboard({
   // transcript items continued by a CLI session id, and differ only in where
   // the CLI runs and what it is allowed to do. `find` looks the conversation
   // up again on every event, because it may have been closed mid-answer.
-  function runTurn(conversation, { cwd, instructions, tools, model }, find) {
+  function runTurn(conversation, { kind, cwd, instructions, tools, model }, find) {
     const run = agentRunner.run({
       cwd,
       prompt: conversation.items.at(-1).text,
@@ -277,6 +293,9 @@ export function createDashboard({
         if (!live) return;
         live.status = ok ? 'idle' : 'failed';
         if (!ok) live.items = applyEvent(live.items, { type: 'result', subtype: 'error', result: message });
+        // Answers arrive with nobody watching — that is the point of a tab you
+        // can leave — so the bell is what says one has.
+        notify(kind, live.id, ok ? 'finished' : 'failed');
         commit();
       },
     });
@@ -286,6 +305,16 @@ export function createDashboard({
   function stopRun(id) {
     runs.get(id)?.cancel();
     runs.delete(id);
+  }
+
+  // A conversation that is going away takes its run, its notifications and any
+  // window's claim to be looking at it with it.
+  function forgetConversation(kind, id) {
+    stopRun(id);
+    notifications = removeFor(notifications, kind, id);
+    for (const [clientId, at] of focusByClient) {
+      if (at.kind === kind && at.targetId === id) focusByClient.delete(clientId);
+    }
   }
 
   // Puts a question to a chat and starts the answer. Says whether it did, so a
@@ -301,6 +330,7 @@ export function createDashboard({
     chat.at = now().toISOString();
     commit();
     runTurn(chat, {
+      kind: 'chat',
       cwd: chatCwd,
       instructions: CHAT_INSTRUCTIONS,
       tools: CHAT_TOOLS,
@@ -345,7 +375,7 @@ export function createDashboard({
 
     'profile:remove'({ profileId }) {
       if (!findProfile(profileId)) return;
-      for (const thread of threads.filter((one) => one.profileId === profileId)) stopRun(thread.id);
+      for (const thread of threads.filter((one) => one.profileId === profileId)) forgetConversation('thread', thread.id);
       profiles = profiles.filter((profile) => profile.id !== profileId);
       threads = threads.filter((thread) => thread.profileId !== profileId);
       commit();
@@ -365,7 +395,7 @@ export function createDashboard({
     },
 
     'thread:remove'({ threadId }) {
-      stopRun(threadId);
+      forgetConversation('thread', threadId);
       threads = threads.filter((thread) => thread.id !== threadId);
       commit();
     },
@@ -383,6 +413,7 @@ export function createDashboard({
       thread.status = 'working';
       commit();
       runTurn(thread, {
+        kind: 'thread',
         cwd: profile.cwd,
         instructions: profile.instructions ?? '',
         tools: profile.tools ?? null,
@@ -430,7 +461,7 @@ export function createDashboard({
 
     'chat:remove'({ chatId }) {
       if (!findChat(chatId)) return;
-      stopRun(chatId);
+      forgetConversation('chat', chatId);
       chats = chats.filter((chat) => chat.id !== chatId);
       commit();
     },
@@ -533,9 +564,9 @@ export function createDashboard({
       if (!closing) return;
       if (!isBrowser(closing)) agentManager.forget(panelId);
       panels = panels.filter((panel) => panel.id !== panelId);
-      notifications = removeForPanel(notifications, panelId);
-      for (const [clientId, focused] of focusByClient) {
-        if (focused === panelId) focusByClient.delete(clientId);
+      notifications = removeFor(notifications, 'panel', panelId);
+      for (const [clientId, at] of focusByClient) {
+        if (at.kind === 'panel' && at.targetId === panelId) focusByClient.delete(clientId);
       }
       reconcileLayouts();
       commit();
@@ -571,8 +602,11 @@ export function createDashboard({
       agentManager.resize(panelId, cols, rows);
     },
 
-    'panel:focus'({ panelId }, _reply, clientId) {
-      if (findPanel(panelId)) focusByClient.set(clientId, panelId);
+    // A window says what it has in front of it, so an answer that arrives
+    // while somebody is reading it is not also announced by the bell.
+    'ui:focus'({ kind, targetId }, _reply, clientId) {
+      const here = { panel: findPanel, thread: findThread, chat: findChat }[kind];
+      if (here && here(targetId)) focusByClient.set(clientId, { kind, targetId });
       else focusByClient.delete(clientId);
     },
 
@@ -609,14 +643,7 @@ export function createDashboard({
     const panel = findPanel(panelId);
     if (!panel || isBrowser(panel) || !HOOK_EVENTS.has(event)) return false;
     if (event === 'needs-input') panel.attention = true;
-    notifications = addNotification(notifications, {
-      id: newId(),
-      panelId,
-      event,
-      at: now().toISOString(),
-      // Read only if someone is looking at that panel right now.
-      read: [...focusByClient.values()].includes(panelId),
-    });
+    notify('panel', panelId, event);
     commit();
     return true;
   }

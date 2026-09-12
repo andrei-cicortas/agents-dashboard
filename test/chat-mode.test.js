@@ -234,6 +234,49 @@ test('a model nobody offers is refused rather than handed to the CLI', async () 
   assert.equal(t.state().chats[0].model, 'sonnet');
 });
 
+test('an answer that arrives while you are elsewhere rings the bell', async () => {
+  const t = setup();
+  const chat = await withChat(t);
+  await t.send({ type: 'chat:send', chatId: chat.id, text: 'hello' });
+  t.runner.last().handlers.onDone({ ok: true, message: null });
+
+  const [notification] = t.state().notifications;
+  assert.equal(notification.kind, 'chat');
+  assert.equal(notification.targetId, chat.id);
+  assert.equal(notification.event, 'finished');
+  assert.equal(t.state().unread, 1);
+});
+
+test('an answer you are sitting in front of does not ring it', async () => {
+  const t = setup();
+  const chat = await withChat(t);
+  await t.send({ type: 'ui:focus', kind: 'chat', targetId: chat.id });
+  await t.send({ type: 'chat:send', chatId: chat.id, text: 'hello' });
+  t.runner.last().handlers.onDone({ ok: true, message: null });
+  assert.equal(t.state().unread, 0);
+  assert.equal(t.state().notifications[0].read, true);
+});
+
+test('a run that failed says so in the bell too', async () => {
+  const t = setup();
+  const chat = await withChat(t);
+  await t.send({ type: 'chat:send', chatId: chat.id, text: 'hello' });
+  t.runner.last().handlers.onDone({ ok: false, message: 'no' });
+  assert.equal(t.state().notifications[0].event, 'failed');
+});
+
+test('deleting a chat takes its notifications with it', async () => {
+  const t = setup();
+  const chat = await withChat(t);
+  await t.send({ type: 'chat:send', chatId: chat.id, text: 'hello' });
+  t.runner.last().handlers.onDone({ ok: true, message: null });
+  assert.equal(t.state().notifications.length, 1);
+
+  await t.send({ type: 'chat:remove', chatId: chat.id });
+  assert.deepEqual(t.state().notifications, []);
+  assert.equal(t.state().unread, 0);
+});
+
 test('chats are saved, and come back ready rather than still working', async () => {
   const t = setup();
   const chat = await withChat(t);

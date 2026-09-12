@@ -2,7 +2,7 @@
 
 import { h } from './dom.js';
 import { icon } from './icons.js';
-import { notificationText } from '/shared/labels.js';
+import { notificationText, panelLabel } from '/shared/labels.js';
 import { timeAgo } from '/shared/time-ago.js';
 
 export function createBell(mount, actions) {
@@ -32,10 +32,23 @@ export function createBell(mount, actions) {
     if (event.key === 'Escape') close();
   });
 
+  // What to call the thing a notification came from. A panel goes by its
+  // conversation topic, a thread by its agent and title, a chat by its name.
+  function subject(state, { kind, targetId }) {
+    if (kind === 'panel') {
+      const panel = state.panels.find((one) => one.id === targetId);
+      return panel ? panelLabel(panel) : null;
+    }
+    if (kind === 'chat') return (state.chats ?? []).find((one) => one.id === targetId)?.title ?? null;
+    const thread = (state.threads ?? []).find((one) => one.id === targetId);
+    if (!thread) return null;
+    const profile = (state.profiles ?? []).find((one) => one.id === thread.profileId);
+    return profile ? `${profile.name} · ${thread.title}` : thread.title;
+  }
+
   function renderList(state) {
     const now = new Date();
     const items = state.notifications.map((notification) => {
-      const panel = state.panels.find((candidate) => candidate.id === notification.panelId);
       return h('button', {
         class: `notification${notification.read ? '' : ' unread'}`,
         onClick: () => {
@@ -45,7 +58,7 @@ export function createBell(mount, actions) {
       },
       h('span', { class: `dot${notification.read ? '' : ' unread-dot'}` }),
       h('span', { class: 'notification-body' },
-        h('div', {}, notificationText(notification, panel)),
+        h('div', {}, notificationText(notification, subject(state, notification))),
         h('div', { class: 'time' }, timeAgo(notification.at, now))));
     });
 

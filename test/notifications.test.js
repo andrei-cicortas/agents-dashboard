@@ -6,16 +6,22 @@ import {
   markRead,
   markAllRead,
   unreadCount,
-  removeForPanel,
+  removeFor,
+  migrate,
 } from '../server/notifications.js';
 
-const make = (id, panelId = 'p1') => ({ id, panelId, event: 'finished', at: '2026-09-11T10:00:00.000Z' });
+const make = (id, targetId = 'p1', kind = 'panel') => ({ id, kind, targetId, event: 'finished', at: '2026-09-11T10:00:00.000Z' });
 
 test('addNotification puts the newest first and defaults read to false', () => {
   let list = addNotification([], make('n1'));
   list = addNotification(list, make('n2'));
   assert.deepEqual(list.map((n) => n.id), ['n2', 'n1']);
   assert.equal(list[0].read, false);
+});
+
+test('a notification with no kind given is one about a panel', () => {
+  const [only] = addNotification([], { id: 'n1', targetId: 'p1', event: 'finished', at: 'x' });
+  assert.equal(only.kind, 'panel');
 });
 
 test('addNotification keeps an explicit read flag', () => {
@@ -44,7 +50,22 @@ test('markAllRead and unreadCount', () => {
   assert.equal(unreadCount(markAllRead(list)), 0);
 });
 
-test('removeForPanel drops notifications of a closed panel', () => {
+test('removeFor drops the notifications of something that is gone', () => {
   const list = addNotification(addNotification([], make('n1', 'p1')), make('n2', 'p2'));
-  assert.deepEqual(removeForPanel(list, 'p1').map((n) => n.id), ['n2']);
+  assert.deepEqual(removeFor(list, 'panel', 'p1').map((n) => n.id), ['n2']);
+});
+
+test('removeFor leaves alone something of another kind with the same id', () => {
+  const list = addNotification(addNotification([], make('n1', 'x', 'panel')), make('n2', 'x', 'chat'));
+  assert.deepEqual(removeFor(list, 'chat', 'x').map((n) => n.id), ['n1']);
+});
+
+test('notifications written before chats existed are read as being about panels', () => {
+  const old = [{ id: 'n1', panelId: 'p1', event: 'finished', at: 'x', read: false }];
+  assert.deepEqual(migrate(old), [{ id: 'n1', kind: 'panel', targetId: 'p1', event: 'finished', at: 'x', read: false }]);
+});
+
+test('migrate leaves a notification that already says what it is about', () => {
+  const list = [make('n1', 'c1', 'chat')];
+  assert.equal(migrate(list)[0], list[0]);
 });

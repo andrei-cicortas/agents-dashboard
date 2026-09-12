@@ -223,7 +223,7 @@ test('full flow: add project, start agent, receive output, get a hook notificati
   // to hello proves the server handled panel:focus before the hook arrives.
   const watcher = await openReadySocket();
   client.messages.length = 0;
-  client.send({ type: 'panel:focus', panelId });
+  client.send({ type: 'ui:focus', kind: 'panel', targetId: panelId });
   client.send({ type: 'hello' });
   await client.next((m) => m.type === 'panel:replay');
   assert.equal(await postHook(panelId, 'finished'), 204);

@@ -217,7 +217,7 @@ test('a needs-input hook sets attention and adds an unread notification; typing 
   assert.equal(lastState().panels[0].attention, true);
   assert.equal(lastState().unread, 1);
   assert.deepEqual(store.saved.notifications, [
-    { id: 'id1', panelId: 'p1', event: 'needs-input', at: '2026-09-11T10:00:00.000Z', read: false },
+    { id: 'id1', kind: 'panel', targetId: 'p1', event: 'needs-input', at: '2026-09-11T10:00:00.000Z', read: false },
   ]);
   await send({ type: 'panel:input', panelId: 'p1', data: 'y' });
   assert.equal(lastState().panels[0].attention, false);
@@ -254,7 +254,7 @@ test('a real keystroke after a focus-report still clears attention', async () =>
 test('a hook for the focused panel is added already read', async () => {
   const { dashboard, lastState, send } = setup({ initial: withPanel() });
   dashboard.start();
-  await send({ type: 'panel:focus', panelId: 'p1' });
+  await send({ type: 'ui:focus', kind: 'panel', targetId: 'p1' });
   dashboard.handleHook({ panelId: 'p1', event: 'finished' });
   assert.equal(lastState().unread, 0);
   assert.equal(lastState().notifications[0].read, true);
@@ -263,7 +263,7 @@ test('a hook for the focused panel is added already read', async () => {
 test('a hook is unread once the client that focused the panel disconnects', async () => {
   const { dashboard, lastState, send } = setup({ initial: withPanel() });
   dashboard.start();
-  await send({ type: 'panel:focus', panelId: 'p1' }, 'window1');
+  await send({ type: 'ui:focus', kind: 'panel', targetId: 'p1' }, 'window1');
   dashboard.handleHook({ panelId: 'p1', event: 'finished' });
   assert.equal(lastState().notifications[0].read, true);
   dashboard.disconnect('window1');
@@ -272,11 +272,11 @@ test('a hook is unread once the client that focused the panel disconnects', asyn
   assert.equal(lastState().unread, 1);
 });
 
-test('panel:focus with a null panelId clears the focus', async () => {
+test('a focus report with no target clears the focus', async () => {
   const { dashboard, lastState, send } = setup({ initial: withPanel() });
   dashboard.start();
-  await send({ type: 'panel:focus', panelId: 'p1' });
-  await send({ type: 'panel:focus', panelId: null });
+  await send({ type: 'ui:focus', kind: 'panel', targetId: 'p1' });
+  await send({ type: 'ui:focus', kind: 'panel', targetId: null });
   dashboard.handleHook({ panelId: 'p1', event: 'finished' });
   assert.equal(lastState().notifications[0].read, false);
 });
@@ -284,8 +284,8 @@ test('panel:focus with a null panelId clears the focus', async () => {
 test('focus is tracked per client', async () => {
   const { dashboard, lastState, send } = setup({ initial: withPanel() });
   dashboard.start();
-  await send({ type: 'panel:focus', panelId: 'p1' }, 'window1');
-  await send({ type: 'panel:focus', panelId: null }, 'window2');
+  await send({ type: 'ui:focus', kind: 'panel', targetId: 'p1' }, 'window1');
+  await send({ type: 'ui:focus', kind: 'panel', targetId: null }, 'window2');
   dashboard.handleHook({ panelId: 'p1', event: 'finished' });
   assert.equal(lastState().notifications[0].read, true);
   dashboard.disconnect('window1');

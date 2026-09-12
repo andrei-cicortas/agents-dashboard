@@ -113,17 +113,26 @@ function computeLayout(path) {
   return reconcile(layoutOf(path), panelsIn(path).map((panel) => panel.id));
 }
 
-// The server marks a notification read only while some window reports that
-// panel as focused, so report null whenever this window is hidden or in the
-// background. undefined means nothing was sent on the current connection.
+// The server marks a notification read only while some window reports that it
+// is looking at the thing, so report nothing whenever this window is hidden or
+// in the background. undefined means nothing was sent on this connection.
 let sentFocus;
 
+// The one conversation this window is showing: the focused terminal, the open
+// thread, or the open chat, depending on which tab is in front.
+function looking() {
+  if (document.visibilityState !== 'visible' || !document.hasFocus()) return null;
+  if (model.tab === 'code') return model.focusedPanelId ? { kind: 'panel', targetId: model.focusedPanelId } : null;
+  if (model.tab === 'agent') return model.selectedThreadId ? { kind: 'thread', targetId: model.selectedThreadId } : null;
+  return model.selectedChatId ? { kind: 'chat', targetId: model.selectedChatId } : null;
+}
+
 function syncFocus() {
-  const looking = document.visibilityState === 'visible' && document.hasFocus();
-  const panelId = looking ? model.focusedPanelId : null;
-  if (panelId === sentFocus) return;
-  sentFocus = panelId;
-  api.send('panel:focus', { panelId });
+  const at = looking();
+  const key = at ? `${at.kind}:${at.targetId}` : null;
+  if (key === sentFocus) return;
+  sentFocus = key;
+  api.send('ui:focus', at ?? { kind: null, targetId: null });
 }
 
 const actions = {
@@ -131,6 +140,7 @@ const actions = {
     model.tab = tab;
     savePrefs();
     render();
+    syncFocus();
     if (tab === 'chat') chatView.focus();
   },
 
@@ -141,6 +151,7 @@ const actions = {
     model.selectedThreadId = null;
     savePrefs();
     render();
+    syncFocus();
   },
 
   createProfile({ name, cwd, instructions }) {
@@ -175,6 +186,7 @@ const actions = {
   selectThread(threadId) {
     model.selectedThreadId = threadId;
     render();
+    syncFocus();
   },
 
   closeThread(threadId) {
@@ -218,6 +230,7 @@ const actions = {
     model.selectedChatId = chatId;
     savePrefs();
     render();
+    syncFocus();
   },
 
   removeChat(chatId) {
@@ -397,9 +410,24 @@ const actions = {
     render();
   },
 
-  openNotification(notification) {
-    api.send('notifications:read', { id: notification.id });
-    if (findPanel(notification.panelId)) actions.focusPanel(notification.panelId);
+  openNotification({ id, kind, targetId }) {
+    api.send('notifications:read', { id });
+    if (kind === 'panel') {
+      if (findPanel(targetId)) actions.focusPanel(targetId);
+      return;
+    }
+    if (kind === 'chat') {
+      if ((model.state?.chats ?? []).some((one) => one.id === targetId)) {
+        model.tab = 'chat';
+        actions.selectChat(targetId);
+      }
+      return;
+    }
+    const thread = (model.state?.threads ?? []).find((one) => one.id === targetId);
+    if (!thread) return;
+    model.tab = 'agent';
+    model.selectedProfileId = thread.profileId;
+    actions.selectThread(targetId);
   },
 
   readAllNotifications() {
@@ -458,10 +486,16 @@ function render() {
 
   const unread = model.state?.unread ?? 0;
   document.title = unread ? `(${unread}) Agents Dashboard` : 'Agents Dashboard';
-  // Nothing points at an agent until there is one to point at.
+  // Nothing points at an agent, or at one of its threads, until there is one
+  // to point at. Worked out here rather than in the view, because the window
+  // has to tell the server which thread it is showing.
   const profiles = model.state?.profiles ?? [];
   if (!profiles.some((one) => one.id === model.selectedProfileId)) {
     model.selectedProfileId = profiles[0]?.id ?? null;
+  }
+  const openThreads = (model.state?.threads ?? []).filter((one) => one.profileId === model.selectedProfileId);
+  if (!openThreads.some((one) => one.id === model.selectedThreadId)) {
+    model.selectedThreadId = openThreads.at(-1)?.id ?? null;
   }
 
   // A chat deleted here or in another window is no longer the one open. Only

@@ -17,9 +17,16 @@ test('panelLabel prefers the agent title', () => {
 });
 
 test('notificationText describes the event', () => {
-  assert.equal(notificationText({ event: 'finished' }, panel), 'Claude Code · my game finished');
-  assert.equal(notificationText({ event: 'needs-input' }, panel), 'Claude Code · my game needs your input');
-  assert.equal(notificationText({ event: 'finished' }, undefined), 'Closed agent finished');
+  const named = panelLabel(panel);
+  assert.equal(notificationText({ event: 'finished' }, named), 'Claude Code · my game finished');
+  assert.equal(notificationText({ event: 'needs-input' }, named), 'Claude Code · my game needs your input');
+  assert.equal(notificationText({ event: 'failed' }, 'Lead finder · go'), 'Lead finder · go could not finish');
+});
+
+test('a notification whose subject is gone still reads as a sentence', () => {
+  assert.equal(notificationText({ event: 'finished', kind: 'panel' }, null), 'Closed agent finished');
+  assert.equal(notificationText({ event: 'finished', kind: 'thread' }, null), 'Closed thread finished');
+  assert.equal(notificationText({ event: 'finished', kind: 'chat' }, null), 'Deleted chat finished');
 });
 
 test('a browser pane is named by the address it is showing', () => {

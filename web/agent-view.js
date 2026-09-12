@@ -116,7 +116,9 @@ export function createAgentView(root, actions) {
       const profiles = state.profiles ?? [];
       profile = profiles.find((one) => one.id === model.selectedProfileId) ?? null;
       const mine = (state.threads ?? []).filter((one) => one.profileId === profile?.id);
-      thread = mine.find((one) => one.id === model.selectedThreadId) ?? mine.at(-1) ?? null;
+      // Which thread is open is worked out in app.js, so the window can tell
+      // the server what it is looking at without asking the view.
+      thread = mine.find((one) => one.id === model.selectedThreadId) ?? null;
 
       blank.hidden = Boolean(profile);
       panel.hidden = !profile;

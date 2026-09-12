@@ -115,6 +115,9 @@ button { font: inherit; color: inherit; }
   box-shadow: inset 0 0 0 1px var(--ring);
 }
 .tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   padding: 0 14px;
   border: 0;
   border-radius: var(--radius-xs);
@@ -123,6 +126,14 @@ button { font: inherit; color: inherit; }
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
+}
+/* Something answered on a tab that is not in front. */
+.tab-dot {
+  width: 5px;
+  height: 5px;
+  margin-right: -8px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 .tab:hover { color: var(--text); }
 .tab.active { background: var(--veil-active); color: var(--text); font-weight: 600; }

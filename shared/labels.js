@@ -26,9 +26,21 @@ export function panelLabel(panel) {
 const EVENT_TEXT = {
   finished: 'finished',
   'needs-input': 'needs your input',
+  failed: 'could not finish',
 };
 
-export function notificationText(notification, panel) {
-  const who = panel ? panelLabel(panel) : 'Closed agent';
+// What to call something that has since been closed, so an old notification
+// still reads as a sentence.
+const GONE = {
+  panel: 'Closed agent',
+  thread: 'Closed thread',
+  chat: 'Deleted chat',
+};
+
+export function notificationText(notification, label) {
+  const who = label || GONE[notification.kind] || 'Closed agent';
   return `${who} ${EVENT_TEXT[notification.event] ?? notification.event}`;
 }
+
+// Which tab has to be in front to see what a notification points at.
+export const TAB_OF_KIND = { panel: 'code', thread: 'agent', chat: 'chat' };

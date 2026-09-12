@@ -34,6 +34,11 @@ This puts an **Agents Dashboard** shortcut on your desktop.
 4. Type your task into the panel's terminal.
 5. The bell shows when an agent finishes or needs your input.
 
+Anything that answers while you are looking somewhere else rings the bell — a
+terminal on the Code tab, one of a named agent's threads, a chat. The tab it
+came from gets a dot, and clicking the notification opens the very thing it is
+about. Whatever is in front of you as it finishes never rings: you saw it.
+
 The sidebar lists pinned folders first, then every other folder under
 **Folders**. The canvas shows one workspace at a time: click a folder to open
 it, or the chevron to fold its list of agents. Agents in other folders keep
@@ -218,6 +223,9 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
 - [ ] Pick Opus, ask again → the answer still continues the same conversation.
 - [ ] Reload → the tab, the chat and its whole transcript come back.
 - [ ] Copy on a code block → the code is on the clipboard.
+- [ ] Ask something, switch to Code before it answers → the bell badge goes up,
+      the Chat tab shows a dot, and clicking the notification opens that chat.
+- [ ] Sit on the chat while it answers → no badge, because you saw it.
 - [ ] Split a panel right, then down → the three tile with no gaps.
 - [ ] Drag a line between two panels → both resize, and neither can be dragged
       away to nothing.
