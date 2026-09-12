@@ -8,6 +8,7 @@ import { createCanvas } from './canvas.js';
 import { isActive, sameFolder } from '/shared/status.js';
 import { reconcile, tidy } from '/shared/tiling.js';
 import { mergeLayouts } from '/shared/layout-sync.js';
+import { cssVariables, DEFAULT_THEME_ID, themeById } from '/shared/themes.js';
 
 const PREFS_KEY = 'agents-dashboard-ui';
 const byId = (id) => document.getElementById(id);
@@ -30,6 +31,7 @@ const model = {
   collapsedProjects: new Set(prefs.collapsedProjects ?? []),
   sidebarCollapsed: Boolean(prefs.sidebarCollapsed),
   selectedWorkspace: prefs.selectedWorkspace ?? null,
+  theme: themeById(prefs.theme ?? DEFAULT_THEME_ID),
   // Layouts per workspace path. Kept here rather than read straight off the
   // server state, so a broadcast sent for some other reason cannot undo a
   // layout change of ours that has not come back yet.
@@ -44,6 +46,7 @@ function savePrefs() {
       collapsedProjects: [...model.collapsedProjects],
       sidebarCollapsed: model.sidebarCollapsed,
       selectedWorkspace: model.selectedWorkspace,
+      theme: model.theme.id,
     }));
   } catch {
     // Preferences are a convenience; ignore storage errors.
@@ -134,6 +137,13 @@ const actions = {
   toggleProject(path) {
     if (model.collapsedProjects.has(path)) model.collapsedProjects.delete(path);
     else model.collapsedProjects.add(path);
+    savePrefs();
+    render();
+  },
+
+  setTheme(themeId) {
+    model.theme = themeById(themeId);
+    applyTheme();
     savePrefs();
     render();
   },
@@ -234,7 +244,18 @@ const actions = {
 const topbar = createTopbar(byId('topbar'), actions);
 const bell = createBell(topbar.bellMount, actions);
 const sidebar = createSidebar(byId('sidebar'), actions);
-const canvas = createCanvas(byId('canvas'), byId('empty'), actions);
+const canvas = createCanvas(byId('canvas'), byId('empty'), actions, model.theme);
+
+// The stylesheet ships the default theme, so the page is already dressed
+// before this runs; setting the same custom properties here swaps it.
+function applyTheme() {
+  for (const [name, value] of Object.entries(cssVariables(model.theme))) {
+    document.documentElement.style.setProperty(name, value);
+  }
+  canvas.setTheme(model.theme);
+}
+
+applyTheme();
 
 // Saves the layout back whenever reconciling changed it, so the server's copy
 // never falls behind what is on screen. reconcile gives the same answer when

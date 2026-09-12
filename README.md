@@ -50,6 +50,16 @@ Panels tile the canvas, so there is always exactly enough room for all of them.
 Each workspace keeps its own arrangement, and it is still there when you
 reopen the window.
 
+## Colour themes
+
+The palette button in the top bar switches between ten dark themes — Midnight,
+Void, Tokyo Night, Dracula, Nord, Catppuccin, Gruvbox, One Dark, Solarized and
+Synthwave. The terminals change with the rest of the app. The choice is kept in
+the browser, so it belongs to the window rather than to the agents.
+
+To add one, put it in `shared/themes.js`: eight colours for the app and the
+sixteen a terminal needs. The tests check that none of them is missing.
+
 Closing the window does **not** stop the agents. Open the shortcut again to see
 them. The power button (top right) stops all agents and the server.
 
@@ -113,6 +123,8 @@ Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
       comes back.
 - [ ] Open the dashboard in two windows → splitting in one shows up in the
       other, and neither undoes the other.
+- [ ] Pick a theme → the app and the running terminals both change, and the
+      choice is still there after a reload.
 - [ ] Start Codex (or see the install hint if it is not installed).
 - [ ] Close the window, wait, open the shortcut again → the panels are still there with their output.
 - [ ] Power button → confirm → "Dashboard stopped".

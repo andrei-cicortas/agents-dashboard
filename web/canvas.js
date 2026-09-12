@@ -31,11 +31,12 @@ function capture(element, pointerId, take) {
 const from = (percent, pixels) => `calc(${percent}% + ${pixels}px)`;
 const span = (percent, pixels) => `calc(${percent}% - ${pixels}px)`;
 
-export function createCanvas(root, emptyElement, actions) {
+export function createCanvas(root, emptyElement, actions, initialTheme) {
   const views = new Map();
   const dividers = new Map();
   let tree = null;
   let drag = null;
+  let theme = initialTheme;
 
   function placePanel(element, rect) {
     element.style.left = from(rect.left, HALF_GAP);
@@ -146,7 +147,7 @@ export function createCanvas(root, emptyElement, actions) {
       for (const panel of panels) {
         let view = views.get(panel.id);
         if (!view) {
-          view = createPanel(panel, actions);
+          view = createPanel(panel, actions, theme);
           views.set(panel.id, view);
           root.append(view.element);
         }
@@ -162,6 +163,11 @@ export function createCanvas(root, emptyElement, actions) {
 
       emptyElement.hidden = Boolean(tree);
       requestAnimationFrame(() => views.forEach((view) => view.fit()));
+    },
+
+    setTheme(next) {
+      theme = next;
+      views.forEach((view) => view.setTheme(next));
     },
 
     write(panelId, data) {

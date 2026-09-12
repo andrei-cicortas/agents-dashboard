@@ -7,33 +7,10 @@ import { icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { folderName, panelLabel } from '/shared/labels.js';
 import { dotClass } from '/shared/status.js';
+import { terminalTheme } from '/shared/themes.js';
 import { agentColour, agentInitial } from './agent-mark.js';
 
-const TERMINAL_THEME = {
-  background: '#141414',
-  foreground: '#fafafa',
-  cursor: '#fafafa',
-  cursorAccent: '#141414',
-  selectionBackground: 'rgba(255, 255, 255, 0.18)',
-  black: '#1f1f1f',
-  red: '#f87171',
-  green: '#4ade80',
-  yellow: '#facc15',
-  blue: '#60a5fa',
-  magenta: '#c084fc',
-  cyan: '#22d3ee',
-  white: '#d4d4d8',
-  brightBlack: '#52525b',
-  brightRed: '#fca5a5',
-  brightGreen: '#86efac',
-  brightYellow: '#fde68a',
-  brightBlue: '#93c5fd',
-  brightMagenta: '#d8b4fe',
-  brightCyan: '#67e8f9',
-  brightWhite: '#fafafa',
-};
-
-export function createPanel(initialPanel, actions) {
+export function createPanel(initialPanel, actions, theme) {
   let panel = initialPanel;
   let shownMaximized = null;
   let shownOverlayKey = null;
@@ -84,7 +61,7 @@ export function createPanel(initialPanel, actions) {
     lineHeight: 1.15,
     cursorBlink: true,
     scrollback: 5000,
-    theme: TERMINAL_THEME,
+    theme: terminalTheme(theme),
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
@@ -172,6 +149,9 @@ ${panel.cwd}`;
       fit();
     },
     fit,
+    setTheme(next) {
+      terminal.options.theme = terminalTheme(next);
+    },
     focusTerminal: () => terminal.focus(),
     dispose() {
       observer.disconnect();
