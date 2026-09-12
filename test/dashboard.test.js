@@ -160,7 +160,9 @@ test('panel:create starts a fresh agent and saves only persistent fields', async
   dashboard.start();
   await send({ type: 'panel:create', agentId: 'codex', cwd: GAME });
   assert.deepEqual(manager.calls.at(-1), ['start', { panelId: 'id1', agentId: 'codex', cwd: GAME, sessionId: 'session1', mode: 'start' }]);
-  assert.deepEqual(store.saved.panels, [{ id: 'id1', agentId: 'codex', cwd: GAME, sessionId: 'session1', title: null }]);
+  // The session is not written down until the panel has been used: an id for a
+  // conversation that was never started cannot be resumed later.
+  assert.deepEqual(store.saved.panels, [{ id: 'id1', agentId: 'codex', cwd: GAME, sessionId: null, title: null }]);
 });
 
 test('panel:create ignores an unknown agent', async () => {
@@ -180,9 +182,22 @@ test('agent events update panels, forward data, and save titles and sessions', (
   assert.deepEqual(sent.at(-1), { type: 'panel:data', panelId: 'p1', data: 'hello' });
   manager.emit('title', { panelId: 'p1', title: 'Add double jump' });
   assert.equal(store.saved.panels[0].title, 'Add double jump');
+  // A fresh session arrives because resuming the old one failed. That panel no
+  // longer has a conversation behind it, so its id is not written down until
+  // someone types into it — otherwise the dead id is simply replaced by
+  // another dead id, and the panel comes back broken every time.
   manager.emit('session', { panelId: 'p1', sessionId: 'fresh' });
+  assert.equal(store.saved.panels[0].sessionId, null);
+});
+
+test('a panel whose resume failed can be used again and is then remembered', async () => {
+  const { dashboard, store, manager, send } = setup({ initial: withPanel() });
+  dashboard.start();
+  manager.emit('session', { panelId: 'p1', sessionId: 'fresh' });
+  await send({ type: 'panel:input', panelId: 'p1', data: 'hello' });
   assert.equal(store.saved.panels[0].sessionId, 'fresh');
 });
+
 
 test('panel:input writes to the agent and panel:resize resizes it', async () => {
   const { dashboard, manager, send } = setup({ initial: withPanel() });
@@ -488,4 +503,37 @@ test('typing into a browser pane goes nowhere', async () => {
 test('state names the person at the keyboard, for the sidebar account card', () => {
   const { dashboard } = setup({ userName: 'ada' });
   assert.deepEqual(dashboard.state().user, { name: 'ada' });
+});
+
+test('a panel nobody has typed into is saved without a session to resume', () => {
+  const { send, store, lastState } = setup({ picked: GAME });
+  send({ type: 'project:add' });
+  send({ type: 'panel:create', agentId: 'claude', cwd: GAME });
+  // The agent was given a session id to start with, but Claude only writes the
+  // conversation once there is one. Saving that id would leave the panel asking
+  // on every restart to resume something that was never created.
+  assert.ok(lastState().panels[0].sessionId, 'it still starts with an id of its own');
+  assert.equal(store.saved.panels[0].sessionId, null);
+});
+
+test('a panel that was typed into keeps its session, so it can be resumed', async () => {
+  const { send, store } = setup({ picked: GAME });
+  await send({ type: 'project:add' });
+  await send({ type: 'panel:create', agentId: 'claude', cwd: GAME });
+  const panelId = store.saved.panels[0].id;
+  await send({ type: 'panel:input', panelId, data: 'hello\r' });
+  assert.equal(store.saved.panels[0].sessionId, 'session1');
+});
+
+test('a panel restored without a session starts a new agent instead of resuming nothing', () => {
+  const saved = {
+    projects: [{ path: GAME, name: 'my game', pinned: false }],
+    panels: [{ id: 'p1', agentId: 'claude', cwd: GAME, sessionId: null, title: null }],
+    notifications: [],
+  };
+  const { dashboard, manager } = setup({ initial: saved });
+  dashboard.start();
+  const [[, options]] = manager.calls;
+  assert.equal(options.mode, 'start');
+  assert.ok(options.sessionId, 'it needs an id to start under');
 });

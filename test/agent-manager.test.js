@@ -174,3 +174,46 @@ test('resize is remembered for the next start and env carries the panel id', () 
   assert.equal(captured.options.env.AGENTS_DASHBOARD_PANEL_ID, 'p6');
   assert.equal(captured.options.env.EXTRA, '1');
 });
+
+test('a resume that dies is retried however long it took to die', () => {
+  // The old rule gave a resume five seconds to fail in. On a slow start the
+  // agent spent longer than that printing its notices before giving up, so the
+  // panel was left dead instead of being started fresh.
+  let exitHandler;
+  const spawned = [];
+  const manager = makeManager({
+    exists: () => true,
+    kill: () => {},
+    newSessionId: () => 'fresh-3',
+    now: () => 0,
+    spawn: (file, commandLine) => {
+      spawned.push(String(commandLine));
+      return { ...fakeTerm(), onExit(handler) { exitHandler = handler; } };
+    },
+  });
+  manager.start({ panelId: 'p20', agentId: 'echo', cwd: workDir, sessionId: 'old', mode: 'resume' });
+  exitHandler({ exitCode: 1 });
+  assert.equal(spawned.length, 2, 'the panel should have been started again');
+  assert.match(spawned[1], /fresh-3/);
+});
+
+test('an agent that was typed into and then exits is left alone', () => {
+  // Quitting an agent you were using is a thing you meant to do; starting it
+  // again behind your back would be wrong.
+  let exitHandler;
+  const spawned = [];
+  const manager = makeManager({
+    exists: () => true,
+    kill: () => {},
+    spawn: (file, commandLine) => {
+      spawned.push(String(commandLine));
+      return { ...fakeTerm(), onExit(handler) { exitHandler = handler; } };
+    },
+  });
+  const statuses = recordStatuses(manager);
+  manager.start({ panelId: 'p21', agentId: 'echo', cwd: workDir, sessionId: 'old', mode: 'resume' });
+  manager.write('p21', '/exit\r');
+  exitHandler({ exitCode: 0 });
+  assert.equal(spawned.length, 1, 'it should not have been started again');
+  assert.equal(statuses.at(-1).status, 'exited');
+});

@@ -8,8 +8,8 @@ import pty from '@lydell/node-pty';
 import { findAgent, buildLaunch } from './agents-config.js';
 import { createScrollback } from './scrollback.js';
 import { createTitleTracker, isUsefulTitle } from './terminal-title.js';
+import { looksTyped } from '../shared/input.js';
 
-export const RESUME_GRACE_MS = 5000;
 const DEFAULT_SIZE = { cols: 120, rows: 30 };
 
 export function commandExists(command) {
@@ -29,8 +29,6 @@ export function createAgentManager({
   exists = commandExists,
   folderExists = (dir) => fs.existsSync(dir),
   kill = killTree,
-  resumeGraceMs = RESUME_GRACE_MS,
-  now = Date.now,
   newSessionId = () => crypto.randomUUID(),
 }) {
   const emitter = new EventEmitter();
@@ -70,7 +68,7 @@ export function createAgentManager({
       cwd,
       env: { ...env, AGENTS_DASHBOARD_PANEL_ID: panelId },
     });
-    const entry = { term, startedAt: now(), sawOutput: false };
+    const entry = { term, sawOutput: false, sawInput: false };
     const titles = createTitleTracker();
     processes.set(panelId, entry);
 
@@ -91,7 +89,11 @@ export function createAgentManager({
       try { term.kill(); } catch { /* already gone */ }
       if (processes.get(panelId) !== entry) return;
       processes.delete(panelId);
-      if (mode === 'resume' && now() - entry.startedAt < resumeGraceMs) {
+      // A resume can fail long after it started — the agent prints its notices
+      // first, and only then says it has no such conversation. What separates
+      // that from quitting on purpose is not how long it took but whether you
+      // ever typed into it, so that is what decides whether to start it fresh.
+      if (mode === 'resume' && !entry.sawInput) {
         const freshId = newSessionId();
         emitter.emit('session', { panelId, sessionId: freshId });
         // This runs inside a pseudo-terminal callback: a throw here would end
@@ -108,7 +110,12 @@ export function createAgentManager({
   }
 
   function write(panelId, data) {
-    processes.get(panelId)?.term.write(data);
+    const entry = processes.get(panelId);
+    if (!entry) return;
+    // The terminal answers the agent's startup questions on its own; only a
+    // person at the keyboard makes this panel one that was used.
+    if (looksTyped(data)) entry.sawInput = true;
+    entry.term.write(data);
   }
 
   function resize(panelId, cols, rows) {

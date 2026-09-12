@@ -9,6 +9,7 @@ import { addNotification, markRead, markAllRead, unreadCount, removeForPanel } f
 import { insert, reconcile } from '../shared/tiling.js';
 import { webAddress } from '../shared/address.js';
 import { applyEvent, emptyTranscript } from '../shared/transcript.js';
+import { looksTyped } from '../shared/input.js';
 
 const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 
@@ -16,8 +17,6 @@ const HOOK_EVENTS = new Set(['finished', 'needs-input']);
 // asked for focus tracking (DECSET 1004). These arrive through the same
 // panel:input channel as real keystrokes, but a click elsewhere in the app
 // (not typing into the panel) must not clear the "needs your input" dot.
-const FOCUS_REPORT = /^(?:\x1b\[[IO])+$/;
-const isFocusReport = (data) => FOCUS_REPORT.test(data);
 
 const isBrowser = (panel) => panel.kind === 'browser';
 
@@ -113,7 +112,11 @@ export function createDashboard({
       projects,
       panels: panels.map((panel) => (isBrowser(panel)
         ? { id: panel.id, kind: 'browser', cwd: panel.cwd, url: panel.url }
-        : { id: panel.id, agentId: panel.agentId, cwd: panel.cwd, sessionId: panel.sessionId, title: panel.title })),
+        // Claude only writes the conversation once there is one, so an id from
+        // a panel nobody typed into names nothing. Saving it would make every
+        // restart ask to resume a conversation that was never created — and
+        // the panel would come back dead, for good.
+        : { id: panel.id, agentId: panel.agentId, cwd: panel.cwd, sessionId: panel.used ? panel.sessionId : null, title: panel.title })),
       notifications,
       layouts,
       profiles,
@@ -161,7 +164,12 @@ export function createDashboard({
   agentManager.on('session', ({ panelId, sessionId }) => {
     const panel = findPanel(panelId);
     if (!panel) return;
+    // A fresh session means resuming the old one failed. Whatever conversation
+    // this panel used to have is gone, so it goes back to having none until it
+    // is typed into — otherwise a dead id is only ever swapped for another
+    // dead id, and the panel comes back broken after every restart.
     panel.sessionId = sessionId;
+    panel.used = false;
     save();
   });
 
@@ -179,12 +187,16 @@ export function createDashboard({
     }));
     panels = saved.panels.map((panel) => ({
       ...panel,
+      // Only a panel that was used has a conversation waiting for it; the rest
+      // start again from nothing, under an id of their own.
+      used: !isBrowser(panel) && Boolean(panel.sessionId),
+      sessionId: isBrowser(panel) ? undefined : (panel.sessionId ?? newSessionId()),
       status: isBrowser(panel) ? 'browser' : 'starting',
       message: null,
       attention: false,
     }));
     reconcileLayouts();
-    panels.filter((panel) => !isBrowser(panel)).forEach((panel) => launch(panel, 'resume'));
+    panels.filter((panel) => !isBrowser(panel)).forEach((panel) => launch(panel, panel.used ? 'resume' : 'start'));
     publish();
   }
 
@@ -398,7 +410,13 @@ export function createDashboard({
       const panel = findPanel(panelId);
       if (!panel || isBrowser(panel) || typeof data !== 'string') return;
       agentManager.write(panelId, data);
-      if (panel.attention && !isFocusReport(data)) {
+      // Typing into it is what makes the conversation real, and so worth
+      // remembering the session of.
+      if (!panel.used && looksTyped(data)) {
+        panel.used = true;
+        save();
+      }
+      if (panel.attention && looksTyped(data)) {
         panel.attention = false;
         publish();
       }
