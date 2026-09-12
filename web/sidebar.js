@@ -5,7 +5,7 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { panelLabel } from '/shared/labels.js';
-import { dotClass, sameFolder } from '/shared/status.js';
+import { dotClass, folderState, sameFolder } from '/shared/status.js';
 import { createFolderPicker } from './folder-picker.js';
 
 export function createSidebar(root, actions) {
@@ -70,6 +70,9 @@ export function createSidebar(root, actions) {
       },
     }, icon(open ? 'chevronDown' : 'chevronRight', { size: 14 })) : h('span', { class: 'chevron-space' });
 
+    // Folded, the count is the only thing left saying what is going on
+    // inside, so it carries the colour the dots would have.
+    const { tone, note } = folderState(panels);
     const selected = sameFolder(project.path, model.selectedWorkspace ?? '');
     const row = h('div', {
       class: `project-row${selected ? ' selected' : ''}`,
@@ -78,7 +81,7 @@ export function createSidebar(root, actions) {
     },
       chevron,
       h('span', { class: 'label' }, project.name),
-      h('span', { class: 'count' }, panels.length ? String(panels.length) : ''),
+      h('span', { class: `count ${tone}`, title: panels.length ? note : '' }, panels.length ? String(panels.length) : ''),
       h('span', { class: 'row-actions' }, addButton, moreButton));
 
     return h('div', { class: 'project' }, row, open && panels.length ? panels.map((panel) => agentRow(panel, model)) : []);

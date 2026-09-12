@@ -215,6 +215,9 @@ button { font: inherit; color: inherit; }
   font-variant-numeric: tabular-nums;
 }
 .count:empty { display: none; }
+/* What the dots underneath would say, for a folder whose list is folded. */
+.count.attention { color: var(--orange); font-weight: 600; }
+.count.stopped { color: var(--grey); }
 
 .agent-row {
   display: flex;

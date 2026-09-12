@@ -42,7 +42,9 @@ about. Whatever is in front of you as it finishes never rings: you saw it.
 The sidebar lists pinned folders first, then every other folder under
 **Folders**. The canvas shows one workspace at a time: click a folder to open
 it, or the chevron to fold its list of agents. Agents in other folders keep
-running. The card at the bottom shows who is signed in to the PC, how much is
+running. The number beside a folder turns orange when an agent inside it is
+waiting for you and grey when one has stopped, so a folded folder still says
+what is going on in it. The card at the bottom shows who is signed in to the PC, how much is
 running, and the two settings that belong to the window.
 
 ## Arranging the panels
