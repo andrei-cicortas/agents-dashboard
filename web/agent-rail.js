@@ -80,13 +80,17 @@ export function createAgentRail(root, actions) {
     if (event.key === 'Escape') closeForm();
   });
 
+  function openForm() {
+    form.hidden = false;
+    nameInput.focus();
+  }
+
   const addButton = h('button', {
     class: 'icon-button',
     title: 'Add an agent',
     onClick: () => {
-      form.hidden = !form.hidden;
-      if (form.hidden) closeForm();
-      else nameInput.focus();
+      if (form.hidden) openForm();
+      else closeForm();
     },
   }, icon('plus'));
 
@@ -128,6 +132,9 @@ export function createAgentRail(root, actions) {
   }
 
   return {
+    // Opened from somewhere other than the + beside the header.
+    openForm,
+
     render(model) {
       const { state } = model;
       if (!state) return;

@@ -53,7 +53,9 @@ export function createAgentView(root, actions) {
 
   const blank = h('div', { class: 'empty' },
     h('div', { class: 'empty-title' }, 'No agent yet'),
-    h('div', { class: 'empty-text' }, 'Click + next to Agents to name one, and give it a folder to work in.'));
+    h('div', { class: 'empty-text' }, 'Name one, and give it a folder to work in.'),
+    h('div', { class: 'empty-actions' },
+      h('button', { class: 'button primary', onClick: () => actions.newProfile() }, 'New agent')));
 
   root.replaceChildren(blank, panel);
 

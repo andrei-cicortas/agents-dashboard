@@ -22,6 +22,7 @@ import { notificationSubject, notificationText } from '/shared/labels.js';
 import { newlyUnread } from '/shared/toasts.js';
 import { inWindow, onWindowMessage, tellWindow } from './desktop.js';
 import { ask, askText } from './dialog.js';
+import { h } from './dom.js';
 
 const PREFS_KEY = 'agents-dashboard-ui';
 const DEFAULT_ADDRESS = 'http://localhost:3000';
@@ -308,6 +309,21 @@ const actions = {
     tellWindow({ type: 'window:zoom', step });
   },
 
+  // The in-app folder browser lives in the sidebar, so it has to be showing
+  // to be used.
+  addFolder() {
+    actions.setTab('code');
+    if (model.sidebarCollapsed) actions.toggleSidebar();
+    sidebar.openPicker();
+  },
+
+  // Likewise the form that names an agent.
+  newProfile() {
+    actions.setTab('agent');
+    if (model.sidebarCollapsed) actions.toggleSidebar();
+    agentRail.openForm();
+  },
+
   async stopAll() {
     const running = model.state?.panels.filter(isActive).length ?? 0;
     const sure = await ask(running
@@ -525,8 +541,8 @@ const actions = {
 // The few things worth starting from the same box you search in.
 const COMMANDS = [
   { id: 'new-chat', label: 'New chat', hint: 'Ctrl+N on the Chat tab', run: () => { actions.setTab('chat'); actions.newChat(); } },
-  // The browser lives in the sidebar, so it has to be there to be used.
-  { id: 'add-folder', label: 'Add a project folder', hint: 'Command', run: () => { actions.setTab('code'); if (model.sidebarCollapsed) actions.toggleSidebar(); sidebar.openPicker(); } },
+  { id: 'add-folder', label: 'Add a project folder', hint: 'Command', run: () => actions.addFolder() },
+  { id: 'new-agent', label: 'New agent', hint: 'Agent tab', run: () => actions.newProfile() },
   { id: 'tidy', label: 'Tidy the panels', hint: 'Command', run: () => { actions.setTab('code'); actions.tidyLayout(); } },
   { id: 'theme', label: 'Switch theme', hint: 'Dark and Light', run: () => actions.setTheme(otherTheme(model.theme).id) },
   { id: 'sidebar', label: 'Show or hide the sidebar', hint: 'Ctrl+B', run: () => actions.toggleSidebar() },
@@ -569,6 +585,25 @@ function syncLayout(path) {
   sendLayout(path, model.layout);
 }
 
+// The buttons on an empty canvas: add a folder when there is none, or start
+// each kind of agent in the one that is open. Redrawn only when what they
+// would do changes, so a button is never swapped out under the pointer.
+let emptyActionsKey = null;
+
+function drawEmptyActions(path) {
+  const agents = model.state?.agents ?? [];
+  const key = `${path ?? ''}|${agents.map((agent) => agent.id).join(',')}`;
+  if (key === emptyActionsKey) return;
+  emptyActionsKey = key;
+  const buttons = path
+    ? agents.map((agent, index) => h('button', {
+      class: index === 0 ? 'button primary' : 'button',
+      onClick: () => actions.createPanel(agent.id, path),
+    }, `New ${agent.name}`))
+    : [h('button', { class: 'button primary', onClick: () => actions.addFolder() }, 'Add a project folder')];
+  byId('empty-actions').replaceChildren(...buttons);
+}
+
 function render() {
   byId('app').classList.toggle('sidebar-collapsed', model.sidebarCollapsed);
   byId('code-view').hidden = model.tab !== 'code';
@@ -585,8 +620,9 @@ function render() {
 
   byId('empty-title').textContent = path ? 'No agents in this folder yet' : 'No workspace yet';
   byId('empty-text').textContent = path
-    ? 'Hover the folder on the left and click + to start one.'
-    : 'Click + next to Workspaces to add a project folder.';
+    ? 'Start one here, or later with + beside the folder on the left.'
+    : 'Add the folder of a project to work in.';
+  drawEmptyActions(path);
 
   const unread = model.state?.unread ?? 0;
   document.title = unread ? `(${unread}) Agents Dashboard` : 'Agents Dashboard';

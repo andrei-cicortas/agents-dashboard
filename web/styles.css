@@ -452,6 +452,17 @@ button { font: inherit; color: inherit; }
 .empty { position: absolute; inset: 0; }
 .empty-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
 .empty-text { color: var(--muted); }
+/* The first thing worth doing on an empty screen, as a button rather than a
+   sentence pointing at a small + somewhere else. */
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.empty-actions:empty { display: none; }
+.empty-actions .button { padding: 6px 14px; }
 
 /* ---------- Panels ---------- */
 
