@@ -39,5 +39,7 @@ $protocol = 'HKCU:\Software\Classes\agents-dashboard'
 Set-RegistryDefault $protocol 'URL:Agents Dashboard'
 New-ItemProperty -Path $protocol -Name 'URL Protocol' -Value '' -PropertyType String -Force | Out-Null
 Set-RegistryDefault "$protocol\DefaultIcon" "`"$icon`",0"
-Set-RegistryDefault "$protocol\shell\open\command" "`"$conhost`" $arguments -Open `"%1`""
+# Through open-link.ps1, which passes on nothing from the link but an id.
+$linkArguments = "--headless `"$powershell`" -NoProfile -ExecutionPolicy Bypass -File `"$root\scripts\open-link.ps1`" `"%1`""
+Set-RegistryDefault "$protocol\shell\open\command" "`"$conhost`" $linkArguments"
 Write-Output 'Registered agents-dashboard: links'
