@@ -369,6 +369,39 @@ button { font: inherit; color: inherit; }
   font-size: 11px;
 }
 
+/* ---------- Dialogs ----------
+   The app's own confirm and prompt: a card where the palette sits, over the
+   same cover. Below the stopped screen, which nothing should ask over. */
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 18vh;
+  background: var(--overlay);
+}
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--popover);
+  box-shadow: inset 0 0 0 1px var(--ring-strong), 0 24px 60px var(--shadow);
+}
+.dialog-title { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.dialog-message { color: var(--muted); font-size: 12.5px; }
+.dialog-field { padding: 7px 9px; font-size: 13px; }
+.dialog .form-actions { margin-top: 4px; }
+.dialog .button { padding: 6px 14px; }
+.dialog .button:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--ring-strong), 0 0 0 2px var(--accent); }
+.button.primary.danger,
+.button.primary.danger:hover { background: var(--red); }
+
 /* ---------- Status dots ---------- */
 
 .dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--grey); }

@@ -19,6 +19,7 @@ import { mergeLayouts } from '/shared/layout-sync.js';
 import { cssVariables, DEFAULT_THEME_ID, otherTheme, themeById } from '/shared/themes.js';
 import { windowChrome } from '/shared/window-chrome.js';
 import { tellWindow } from './desktop.js';
+import { ask, askText } from './dialog.js';
 
 const PREFS_KEY = 'agents-dashboard-ui';
 const DEFAULT_ADDRESS = 'http://localhost:3000';
@@ -163,24 +164,37 @@ const actions = {
     api.send('profile:create', { name, cwd, instructions, model: wanted });
   },
 
-  removeProfile(profileId) {
+  async removeProfile(profileId) {
     const profile = model.state?.profiles?.find((one) => one.id === profileId);
     if (!profile) return;
-    if (!confirm(`Remove ${profile.name} and all of its threads?`)) return;
-    api.send('profile:remove', { profileId });
+    const sure = await ask({
+      title: `Remove ${profile.name}?`,
+      message: 'All of its threads go with it. This cannot be undone.',
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (sure) api.send('profile:remove', { profileId });
   },
 
-  renameProfile(profileId) {
+  async renameProfile(profileId) {
     const profile = model.state?.profiles?.find((one) => one.id === profileId);
     if (!profile) return;
-    const name = prompt('Name for this agent', profile.name);
+    const name = await askText({ title: 'Rename this agent', value: profile.name, confirmLabel: 'Rename' });
     if (name && name.trim()) api.send('profile:update', { profileId, name });
   },
 
   // An agent answers with nobody watching, so widening what it may touch is
   // asked about rather than toggled quietly.
-  setProfileTools(profileId, allowWrite) {
-    if (allowWrite && !confirm('Let this agent run commands and change files in its folder?')) return;
+  async setProfileTools(profileId, allowWrite) {
+    if (allowWrite) {
+      const sure = await ask({
+        title: 'Let this agent change files?',
+        message: 'It will be able to run commands and edit anything in its folder, with nobody there to approve each step.',
+        confirmLabel: 'Let it change files',
+        danger: true,
+      });
+      if (!sure) return;
+    }
     api.send('profile:update', { profileId, tools: allowWrite ? WRITE_TOOLS : [] });
   },
 
@@ -242,17 +256,24 @@ const actions = {
     syncFocus();
   },
 
-  removeChat(chatId) {
+  async removeChat(chatId) {
     const chat = model.state?.chats?.find((one) => one.id === chatId);
-    if (!chat || !confirm(`Delete "${chat.title}"?`)) return;
+    if (!chat) return;
+    const sure = await ask({
+      title: `Delete "${chat.title}"?`,
+      message: 'The whole conversation goes. This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!sure) return;
     if (model.selectedChatId === chatId) model.selectedChatId = null;
     api.send('chat:remove', { chatId });
   },
 
-  renameChat(chatId) {
+  async renameChat(chatId) {
     const chat = model.state?.chats?.find((one) => one.id === chatId);
     if (!chat) return;
-    const title = prompt('Name for this chat', chat.title);
+    const title = await askText({ title: 'Rename this chat', value: chat.title, confirmLabel: 'Rename' });
     if (title && title.trim()) api.send('chat:rename', { chatId, title });
   },
 
@@ -279,12 +300,21 @@ const actions = {
     render();
   },
 
-  stopAll() {
+  async stopAll() {
     const running = model.state?.panels.filter(isActive).length ?? 0;
-    const question = running
-      ? `Stop all ${running} agents and close the dashboard?`
-      : 'Close the dashboard?';
-    if (confirm(question)) api.send('server:stop');
+    const sure = await ask(running
+      ? {
+        title: `Stop ${running === 1 ? 'the agent' : `all ${running} agents`} and close?`,
+        message: 'Their panels come back the next time the app opens, and each carries on its conversation.',
+        confirmLabel: 'Stop and close',
+        danger: true,
+      }
+      : {
+        title: 'Close the dashboard?',
+        message: 'Nothing is running. Opening the app again starts it.',
+        confirmLabel: 'Close',
+      });
+    if (sure) api.send('server:stop');
   },
 
   addProject(folderPath) {
@@ -378,9 +408,17 @@ const actions = {
     actions.setLayout(tidy(panelsIn(path).map((panel) => panel.id), columns));
   },
 
-  closePanel(panelId) {
+  async closePanel(panelId) {
     const panel = findPanel(panelId);
-    if (panel && isActive(panel) && !confirm('Stop this agent?')) return;
+    if (panel && isActive(panel)) {
+      const sure = await ask({
+        title: `Stop ${panel.agentName ?? 'this agent'}?`,
+        message: 'The panel closes and the agent in it stops.',
+        confirmLabel: 'Stop agent',
+        danger: true,
+      });
+      if (!sure) return;
+    }
     if (model.maximizedPanelId === panelId) model.maximizedPanelId = null;
     api.send('panel:close', { panelId });
   },
