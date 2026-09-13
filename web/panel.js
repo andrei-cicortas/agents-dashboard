@@ -90,7 +90,17 @@ export function createPanel(initialPanel, actions, theme) {
   const searchAddon = new SearchAddon();
   terminal.loadAddon(searchAddon);
   terminal.open(host);
-  terminal.onData((data) => actions.input(panel.id, data));
+
+  // A terminal answers some of the questions a program writes to it — where is
+  // the cursor, what kind of terminal is this — by typing the answer back.
+  // Replayed output can still hold such a question from long ago, and
+  // answering it again would type stray text like "[?1;2c" into the agent when
+  // the window opens or reconnects. So nothing goes to the agent while
+  // replaying; typing works again as soon as the replay has been read.
+  let replaying = false;
+  terminal.onData((data) => {
+    if (!replaying) actions.input(panel.id, data);
+  });
 
   // Ctrl+F belongs to the dashboard rather than to the agent: without this the
   // terminal would forward it and the agent would see a stray keystroke.
@@ -220,7 +230,12 @@ ${panel.cwd}`;
     write: (data) => terminal.write(data),
     replay(data) {
       terminal.reset();
-      if (data) terminal.write(data);
+      if (data) {
+        replaying = true;
+        // The callback runs once this data has been read, and before anything
+        // written after it, so live output is answered again as usual.
+        terminal.write(data, () => { replaying = false; });
+      }
       // Replay follows every (re)connect; a restarted server starts agents at
       // its default size, so send the size again even if it did not change.
       lastSize = '';
