@@ -220,8 +220,16 @@ function Show-Toast([string]$id, [string]$text) {
   }
 }
 
+# Set once the page has loaded; a message posted before then is never heard.
+$pageReady = $false
+
 function Send-OpenNotification([string]$id) {
-  if ($id -notmatch '^[A-Za-z0-9-]{1,64}$' -or $null -eq $webView.CoreWebView2) { return }
+  if ($id -notmatch '^[A-Za-z0-9-]{1,64}$') { return }
+  # Clicked while the page is still loading: it goes as soon as the page is up.
+  if (-not $script:pageReady) {
+    $script:OpenNotification = $id
+    return
+  }
   $webView.CoreWebView2.PostWebMessageAsJson((@{ type = 'open-notification'; id = $id } | ConvertTo-Json -Compress))
 }
 
@@ -306,9 +314,12 @@ function Initialize-Page($core) {
   })
   $core.add_NavigationCompleted({
     param($s, $e)
-    if ($e.IsSuccess -and $script:OpenNotification) {
-      Send-OpenNotification $script:OpenNotification
+    if (-not $e.IsSuccess) { return }
+    $script:pageReady = $true
+    if ($script:OpenNotification) {
+      $waiting = $script:OpenNotification
       $script:OpenNotification = ''
+      Send-OpenNotification $waiting
     }
   })
 
