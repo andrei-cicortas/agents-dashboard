@@ -96,6 +96,9 @@ button { font: inherit; color: inherit; }
 .topbar-right { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
 
 .brand { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 650; letter-spacing: -0.01em; }
+/* The app's own mark, drawn in the icon's colours rather than the theme's. */
+.app-logo { display: inline-flex; flex: none; color: var(--text); }
+.app-logo svg { display: block; }
 .brand .icon { color: var(--accent); }
 
 .icon { display: inline-flex; align-items: center; justify-content: center; flex: none; }

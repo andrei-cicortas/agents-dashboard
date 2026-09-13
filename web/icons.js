@@ -1,7 +1,6 @@
 // Inline SVG icons (stroke style, 24x24 grid) so the app needs no icon font.
 
 const PATHS = {
-  logo: '<path d="M12 2 21 7v10l-9 5-9-5V7z"/><path d="M12 22V12"/><path d="m21 7-9 5-9-5"/>',
   sidebar: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
   bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
   power: '<path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/>',
@@ -26,6 +25,22 @@ const PATHS = {
   spark: '<path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M18 17.5 18.7 19.3 20.5 20 18.7 20.7 18 22.5 17.3 20.7 15.5 20 17.3 19.3z"/>',
   folder: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/>',
 };
+
+// The app's own mark, the same drawing as assets/icon.ico: a dark tile with a
+// grid of four panels, the first in the brand orange. Its colours are the
+// icon's, not the theme's, so it looks like the app on the taskbar in both.
+export function appLogo({ size = 18 } = {}) {
+  const span = document.createElement('span');
+  span.className = 'app-logo';
+  span.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true">`
+    + '<rect x="0.5" y="0.5" width="23" height="23" rx="4.5" fill="#111113" stroke="currentColor" stroke-opacity="0.18"/>'
+    + '<rect x="4.5" y="4.5" width="6.75" height="6.75" rx="1.2" fill="#f5a524"/>'
+    + '<rect x="12.75" y="4.5" width="6.75" height="6.75" rx="1.2" fill="#3a3a42"/>'
+    + '<rect x="4.5" y="12.75" width="6.75" height="6.75" rx="1.2" fill="#3a3a42"/>'
+    + '<rect x="12.75" y="12.75" width="6.75" height="6.75" rx="1.2" fill="#3a3a42"/>'
+    + '</svg>';
+  return span;
+}
 
 export function icon(name, { size = 16, className = 'icon' } = {}) {
   const span = document.createElement('span');

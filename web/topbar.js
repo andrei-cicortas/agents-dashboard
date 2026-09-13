@@ -3,7 +3,7 @@
 // they belong to the window, not to the canvas.
 
 import { h } from './dom.js';
-import { icon } from './icons.js';
+import { appLogo, icon } from './icons.js';
 import { openMenu } from './menu.js';
 import { sameFolder } from '/shared/status.js';
 import { TAB_OF_KIND } from '/shared/labels.js';
@@ -44,7 +44,7 @@ export function createTopbar(root, actions) {
 
   root.replaceChildren(
     h('div', { class: 'topbar-left' },
-      h('div', { class: 'brand' }, icon('logo', { size: 18 }), 'Agents Dashboard'),
+      h('div', { class: 'brand' }, appLogo({ size: 20 }), 'Agents Dashboard'),
       h('button', { class: 'icon-button', title: 'Toggle sidebar', onClick: () => actions.toggleSidebar() }, icon('sidebar')),
       workspace),
     h('div', { class: 'tabs', role: 'tablist' }, buttons),
