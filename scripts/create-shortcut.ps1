@@ -23,7 +23,21 @@ $folders = @(
 foreach ($folder in $folders) {
   $path = Join-Path $folder 'Agents Dashboard.lnk'
   # The same AppUserModelID as the window, so a pinned icon and the open
-  # window share one taskbar button.
+  # window share one taskbar button. The Start menu one is also what Windows
+  # needs before it shows the app's notifications.
   [AgentsDashboard.Shortcut]::Save($path, $conhost, $arguments, $root, $icon, 'Agents Dashboard', 'AgentsDashboard.App')
   Write-Output "Created $path"
 }
+
+# agents-dashboard: links. A clicked Windows notification opens one, to bring
+# the app forward on the thing it was about. Per user, so no admin rights.
+function Set-RegistryDefault([string]$key, [string]$value) {
+  if (-not (Test-Path $key)) { New-Item -Path $key -Force | Out-Null }
+  Set-Item -Path $key -Value $value
+}
+$protocol = 'HKCU:\Software\Classes\agents-dashboard'
+Set-RegistryDefault $protocol 'URL:Agents Dashboard'
+New-ItemProperty -Path $protocol -Name 'URL Protocol' -Value '' -PropertyType String -Force | Out-Null
+Set-RegistryDefault "$protocol\DefaultIcon" "`"$icon`",0"
+Set-RegistryDefault "$protocol\shell\open\command" "`"$conhost`" $arguments -Open `"%1`""
+Write-Output 'Registered agents-dashboard: links'

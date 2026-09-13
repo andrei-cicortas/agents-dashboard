@@ -9,3 +9,8 @@ export const inWindow = Boolean(host);
 export function tellWindow(message) {
   host?.postMessage(message);
 }
+
+// What the window says back, such as a Windows notification being clicked.
+export function onWindowMessage(handler) {
+  host?.addEventListener('message', (event) => handler(event.data));
+}

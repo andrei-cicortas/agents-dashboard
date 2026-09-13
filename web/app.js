@@ -18,7 +18,9 @@ import { reconcile, tidy } from '/shared/tiling.js';
 import { mergeLayouts } from '/shared/layout-sync.js';
 import { cssVariables, DEFAULT_THEME_ID, otherTheme, themeById } from '/shared/themes.js';
 import { windowChrome } from '/shared/window-chrome.js';
-import { tellWindow } from './desktop.js';
+import { notificationSubject, notificationText } from '/shared/labels.js';
+import { newlyUnread } from '/shared/toasts.js';
+import { onWindowMessage, tellWindow } from './desktop.js';
 import { ask, askText } from './dialog.js';
 
 const PREFS_KEY = 'agents-dashboard-ui';
@@ -614,19 +616,50 @@ function render() {
 render();
 installShortcuts(actions, model);
 
-// The unread count last seen, to notice it going up. null until the first
-// state, so opening the window on old notifications flashes nothing.
-let seenUnread = null;
+// The notifications this window has already seen, so only new ones are
+// announced. null until the first state arrives.
+let seenNotifications = null;
+
+// Something new rang the bell. While this window is not the one being looked
+// at, its taskbar button flashes and Windows shows a notification for it; the
+// window checks for itself too that it is not the one in front.
+function announce(state) {
+  const news = newlyUnread(seenNotifications, state.notifications ?? []);
+  seenNotifications = news.seen;
+  if (!news.fresh.length) return;
+  tellWindow({ type: 'window:attention' });
+  if (document.visibilityState === 'visible' && document.hasFocus()) return;
+  for (const notification of news.fresh.slice(0, 3)) {
+    tellWindow({
+      type: 'window:notify',
+      id: notification.id,
+      text: notificationText(notification, notificationSubject(state, notification)),
+    });
+  }
+}
+
+// A clicked Windows notification. When the click is what opened the app, it
+// waits here for the state that holds it.
+let pendingNotification = null;
+
+function openPendingNotification() {
+  if (!pendingNotification || !model.state) return;
+  const notification = model.state.notifications.find((one) => one.id === pendingNotification);
+  pendingNotification = null;
+  if (notification) actions.openNotification(notification);
+}
+
+onWindowMessage((message) => {
+  if (message?.type !== 'open-notification' || typeof message.id !== 'string') return;
+  pendingNotification = message.id;
+  openPendingNotification();
+});
 
 const api = connect({
   onMessage(message) {
     if (message.type === 'state') {
       model.state = message;
-      // Something new rang the bell: the window flashes its taskbar button,
-      // which it only does while it is not the one in front.
-      const unread = message.unread ?? 0;
-      if (seenUnread !== null && unread > seenUnread) tellWindow({ type: 'window:attention' });
-      seenUnread = unread;
+      announce(message);
       // The chat we asked the server to start: open it, now that it has an id.
       if (pendingChat && (message.chats ?? []).length) {
         model.selectedChatId = message.chats.at(-1).id;
@@ -645,6 +678,7 @@ const api = connect({
       // render() is where a thread or chat first becomes the one on screen, so
       // the server only learns what this window is watching afterwards.
       syncFocus();
+      openPendingNotification();
     } else if (message.type === 'panel:data') {
       canvas.write(message.panelId, message.data);
     } else if (message.type === 'panel:replay') {

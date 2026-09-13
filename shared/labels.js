@@ -42,5 +42,19 @@ export function notificationText(notification, label) {
   return `${who} ${EVENT_TEXT[notification.event] ?? notification.event}`;
 }
 
+// What a notification came from, by name: a panel by its conversation topic,
+// a thread by its agent and title, a chat by its name. null once it is gone.
+export function notificationSubject(state, { kind, targetId }) {
+  if (kind === 'panel') {
+    const panel = (state.panels ?? []).find((one) => one.id === targetId);
+    return panel ? panelLabel(panel) : null;
+  }
+  if (kind === 'chat') return (state.chats ?? []).find((one) => one.id === targetId)?.title ?? null;
+  const thread = (state.threads ?? []).find((one) => one.id === targetId);
+  if (!thread) return null;
+  const profile = (state.profiles ?? []).find((one) => one.id === thread.profileId);
+  return profile ? `${profile.name} · ${thread.title}` : thread.title;
+}
+
 // Which tab has to be in front to see what a notification points at.
 export const TAB_OF_KIND = { panel: 'code', thread: 'agent', chat: 'chat' };

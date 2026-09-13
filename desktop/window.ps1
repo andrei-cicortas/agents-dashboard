@@ -11,6 +11,9 @@ param(
   [Parameter(Mandatory = $true)] [string]$ProfileDir,
   # Set by a second launch to ask this window to come to the front.
   [System.Threading.EventWaitHandle]$Activate,
+  # The notification to open once the page is up, when a click on a Windows
+  # notification is what opened the app.
+  [string]$OpenNotification = '',
   [int]$DebugPort = 0,
   [switch]$DevTools
 )
@@ -22,6 +25,8 @@ $appId = 'AgentsDashboard.App'
 $vendor = Join-Path $root 'vendor\webview2'
 $statePath = Join-Path $DataDir 'window.json'
 $errorLog = Join-Path $DataDir 'window-error.log'
+# Left here by a second launch for this window to pick up (see launch.ps1).
+$openRequestPath = Join-Path $DataDir 'open-notification.txt'
 $appOrigin = ([Uri]$Url).GetLeftPart([UriPartial]::Authority)
 
 $coreDll = Join-Path $vendor 'Microsoft.Web.WebView2.Core.dll'
@@ -178,6 +183,30 @@ function Set-Chrome($message) {
   Set-TitleBar
 }
 
+# A Windows notification. Clicking it opens an agents-dashboard: link, which
+# Windows hands to launch.ps1, which brings this window forward and has the
+# page open what the notification was about.
+function Show-Toast([string]$id, [string]$text) {
+  if (-not $text) { return }
+  try {
+    $null = [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
+    $null = [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime]
+    $launch = if ($id -match '^[A-Za-z0-9-]{1,64}$') { "agents-dashboard:open?notification=$id" } else { 'agents-dashboard:open' }
+    $body = [Security.SecurityElement]::Escape($text)
+    $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
+    $xml.LoadXml("<toast activationType=`"protocol`" launch=`"$launch`"><visual><binding template=`"ToastGeneric`"><text>$body</text></binding></visual></toast>")
+    $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
+    [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($appId).Show($toast)
+  } catch {
+    Write-ErrorLog "Could not show a Windows notification: $_"
+  }
+}
+
+function Send-OpenNotification([string]$id) {
+  if ($id -notmatch '^[A-Za-z0-9-]{1,64}$' -or $null -eq $webView.CoreWebView2) { return }
+  $webView.CoreWebView2.PostWebMessageAsJson((@{ type = 'open-notification'; id = $id } | ConvertTo-Json -Compress))
+}
+
 function Receive-PageMessage($e) {
   if (-not (Test-AppAddress $e.Source)) { return }
   try {
@@ -188,6 +217,11 @@ function Receive-PageMessage($e) {
   switch ($message.type) {
     'window:theme' { Set-Chrome $message }
     'window:close' { $form.Close() }
+    'window:notify' {
+      if (-not [AgentsDashboard.Native]::IsForeground($form.Handle)) {
+        Show-Toast ([string]$message.id) ([string]$message.text)
+      }
+    }
     'window:attention' {
       if (-not [AgentsDashboard.Native]::IsForeground($form.Handle)) {
         [AgentsDashboard.Native]::FlashUntilFocused($form.Handle)
@@ -251,6 +285,13 @@ function Initialize-Page($core) {
     param($s, $e)
     Limit-ContextMenu $e
   })
+  $core.add_NavigationCompleted({
+    param($s, $e)
+    if ($e.IsSuccess -and $script:OpenNotification) {
+      Send-OpenNotification $script:OpenNotification
+      $script:OpenNotification = ''
+    }
+  })
 
   if ($DevTools) { $core.OpenDevToolsWindow() }
 }
@@ -287,6 +328,14 @@ $activateTimer = New-Object System.Windows.Forms.Timer
 $activateTimer.Interval = 250
 $activateTimer.add_Tick({
   if (-not $Activate.WaitOne(0)) { return }
+  if (Test-Path $openRequestPath) {
+    try {
+      Send-OpenNotification ((Get-Content -Raw $openRequestPath).Trim())
+      Remove-Item -Force $openRequestPath
+    } catch {
+      Write-ErrorLog "Could not open the clicked notification: $_"
+    }
+  }
   if ($form.WindowState -eq [System.Windows.Forms.FormWindowState]::Minimized) {
     $form.WindowState = if ($script:wasMaximized) { [System.Windows.Forms.FormWindowState]::Maximized } else { [System.Windows.Forms.FormWindowState]::Normal }
   }

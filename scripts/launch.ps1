@@ -10,6 +10,8 @@ param(
   [int]$Port = 4317,
   [string]$DataDir = (Join-Path $env:APPDATA 'agents-dashboard'),
   [string]$ProfileDir = (Join-Path $env:LOCALAPPDATA 'agents-dashboard\webview'),
+  # An agents-dashboard: link, from a clicked Windows notification.
+  [string]$Open = '',
   # For development: open DevTools with the window, or let a debugger attach.
   [switch]$DevTools,
   [int]$DebugPort = 0
@@ -50,6 +52,9 @@ function Test-PortBusy {
 
 # ---- One window ------------------------------------------------------------
 
+# Only ever an id: the link comes from outside, so nothing else of it is used.
+$notificationId = if ($Open -match 'notification=([A-Za-z0-9-]{1,64})') { $Matches[1] } else { '' }
+
 $windowMutex = [System.Threading.Mutex]::new($false, "Local\AgentsDashboard.Window.$Port")
 $activate = [System.Threading.EventWaitHandle]::new($false, [System.Threading.EventResetMode]::AutoReset, "Local\AgentsDashboard.Activate.$Port")
 try {
@@ -59,6 +64,7 @@ try {
   $ownsWindow = $true
 }
 if (-not $ownsWindow) {
+  if ($notificationId) { Set-Content -Path (Join-Path $DataDir 'open-notification.txt') -Value $notificationId }
   Add-Type -TypeDefinition (Get-Content -Raw (Join-Path $root 'desktop\Native.cs'))
   [AgentsDashboard.Native]::AllowAnyForeground()
   $activate.Set() | Out-Null
@@ -103,5 +109,5 @@ if (-not (Test-Dashboard)) {
 # ---- The window ------------------------------------------------------------
 
 & (Join-Path $root 'desktop\window.ps1') -Url $url -DataDir $DataDir -ProfileDir $ProfileDir `
-  -Activate $activate -DebugPort $DebugPort -DevTools:$DevTools
+  -Activate $activate -OpenNotification $notificationId -DebugPort $DebugPort -DevTools:$DevTools
 $windowMutex.ReleaseMutex()

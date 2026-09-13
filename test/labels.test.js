@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { folderName, panelLabel, notificationText } from '../shared/labels.js';
+import { folderName, panelLabel, notificationText, notificationSubject } from '../shared/labels.js';
 
 const panel = { title: null, agentName: 'Claude Code', cwd: 'C:\\Users\\user\\Desktop\\my game' };
 
@@ -27,6 +27,26 @@ test('a notification whose subject is gone still reads as a sentence', () => {
   assert.equal(notificationText({ event: 'finished', kind: 'panel' }, null), 'Closed agent finished');
   assert.equal(notificationText({ event: 'finished', kind: 'thread' }, null), 'Closed thread finished');
   assert.equal(notificationText({ event: 'finished', kind: 'chat' }, null), 'Deleted chat finished');
+});
+
+test('a notification is named after what it came from', () => {
+  const state = {
+    panels: [{ id: 'p1', title: 'Add double jump', agentName: 'Claude Code', cwd: 'C:\\game' }],
+    chats: [{ id: 'c1', title: 'Regex for emails' }],
+    profiles: [{ id: 'a1', name: 'Release notes' }],
+    threads: [{ id: 't1', profileId: 'a1', title: 'v0.2' }, { id: 't2', profileId: 'gone', title: 'Orphan' }],
+  };
+  assert.equal(notificationSubject(state, { kind: 'panel', targetId: 'p1' }), 'Add double jump');
+  assert.equal(notificationSubject(state, { kind: 'chat', targetId: 'c1' }), 'Regex for emails');
+  assert.equal(notificationSubject(state, { kind: 'thread', targetId: 't1' }), 'Release notes · v0.2');
+  assert.equal(notificationSubject(state, { kind: 'thread', targetId: 't2' }), 'Orphan');
+});
+
+test('a notification about something since closed has no subject', () => {
+  const state = { panels: [] };
+  assert.equal(notificationSubject(state, { kind: 'panel', targetId: 'x' }), null);
+  assert.equal(notificationSubject(state, { kind: 'chat', targetId: 'x' }), null);
+  assert.equal(notificationSubject(state, { kind: 'thread', targetId: 'x' }), null);
 });
 
 test('a browser pane is named by the address it is showing', () => {

@@ -50,8 +50,12 @@ PowerShell, .NET and WebView2, the page engine Windows itself uses.
 - There is one window. Opening the app again brings it to the front.
 - It remembers its size, position and whether it was maximised.
 - The title bar follows Dark and Light.
-- When something new rings the bell while the window is behind others, its
-  taskbar button flashes.
+- When something new rings the bell while the window is minimised or behind
+  others, its taskbar button flashes and Windows shows a notification. Clicking
+  the notification opens the terminal, thread or chat it is about. They can be
+  turned off like any app's, in Windows Settings → System → Notifications.
+- Questions such as "Stop this agent?" come up in the app's own dialogs, which
+  Escape cancels and Enter confirms.
 - Links open in your own browser. Ctrl+F, Ctrl+N and the other shortcuts belong
   to the app, not to a browser.
 - **Stop all agents and close** closes the window too.
@@ -305,6 +309,8 @@ The "Test Agent" echoes what you type; type `notify` or `done` to ring the bell.
 - [ ] Resize and move it, close it, open it again → same size and place.
 - [ ] Switch to Light → the title bar turns light too.
 - [ ] Click a link in a chat answer → it opens in the browser, not in the app.
+- [ ] Minimise the window and let an agent finish → a Windows notification
+      appears; click it → the window comes back on that agent.
 - [ ] Add a project folder with **+** → it appears under Workspaces.
 - [ ] Pin it → it moves under "Pinned".
 - [ ] Start Claude Code → the panel shows Claude's prompt; send a message and get a reply.
