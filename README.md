@@ -311,6 +311,11 @@ The "Test Agent" echoes what you type; type `notify` or `done` to ring the bell.
 - [ ] Click a link in a chat answer → it opens in the browser, not in the app.
 - [ ] Minimise the window and let an agent finish → a Windows notification
       appears; click it → the window comes back on that agent.
+- [ ] Close the window, then click that notification in the notification
+      centre → the app opens on that agent.
+- [ ] With the window open, end the server (Task Manager → node.exe) → the
+      window says Reconnecting; open the app again → the server starts and the
+      same window reconnects.
 - [ ] Add a project folder with **+** → it appears under Workspaces.
 - [ ] Pin it → it moves under "Pinned".
 - [ ] Start Claude Code → the panel shows Claude's prompt; send a message and get a reply.
