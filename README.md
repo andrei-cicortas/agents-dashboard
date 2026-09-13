@@ -130,6 +130,8 @@ name also finds everything working in that folder.
 | `Ctrl+B` | Show or hide the sidebar |
 | `Ctrl+N` | New chat, or a new thread for the agent you are on |
 | `Ctrl+F` | Find in the panel you are in |
+| `Ctrl+C` | In a terminal with text selected: copy it. With nothing selected it goes to the agent, as always |
+| `Ctrl`+click | Open an address shown in a terminal, in your browser |
 
 The terminals get every other key, so nothing here is taken away from an agent.
 

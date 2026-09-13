@@ -22,6 +22,7 @@ const STATIC_ROUTES = [
   { prefix: '/vendor/xterm/', dir: path.join(ROOT, 'node_modules', '@xterm', 'xterm') },
   { prefix: '/vendor/addon-fit/', dir: path.join(ROOT, 'node_modules', '@xterm', 'addon-fit') },
   { prefix: '/vendor/addon-search/', dir: path.join(ROOT, 'node_modules', '@xterm', 'addon-search') },
+  { prefix: '/vendor/addon-web-links/', dir: path.join(ROOT, 'node_modules', '@xterm', 'addon-web-links') },
   { prefix: '/shared/', dir: path.join(ROOT, 'shared') },
   { prefix: '/', dir: path.join(ROOT, 'web') },
 ];

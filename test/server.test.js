@@ -111,6 +111,9 @@ test('resolveStaticPath maps URL paths to project folders and blocks escapes', (
   assert.equal(resolveStaticPath('/app.js'), path.join(root, 'web', 'app.js'));
   assert.equal(resolveStaticPath('/shared/layout.js'), path.join(root, 'shared', 'layout.js'));
   assert.equal(resolveStaticPath('/vendor/xterm/lib/xterm.mjs'), path.join(root, 'node_modules', '@xterm', 'xterm', 'lib', 'xterm.mjs'));
+  assert.equal(
+    resolveStaticPath('/vendor/addon-web-links/lib/addon-web-links.mjs'),
+    path.join(root, 'node_modules', '@xterm', 'addon-web-links', 'lib', 'addon-web-links.mjs'));
   assert.equal(resolveStaticPath('/favicon.ico'), path.join(root, 'assets', 'icon.ico'));
   assert.equal(resolveStaticPath('/shared/../server/index.js'), null);
   assert.equal(resolveStaticPath('/..%2fpackage.json'), null);

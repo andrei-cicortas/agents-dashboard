@@ -11,6 +11,16 @@ import { dotClass } from '/shared/status.js';
 import { findDecorations, terminalTheme } from '/shared/themes.js';
 import { agentColour, agentInitial } from './agent-mark.js';
 import { matchLabel } from '/shared/find.js';
+import { copyText } from './clipboard.js';
+
+// An address in an agent's output — a login page, a pull request — opens in
+// the browser on Ctrl+click, the way Windows Terminal does it, so a plain click
+// to focus the terminal never sends you off somewhere. Only http and https: a
+// terminal can print anything, javascript: included.
+function openAddress(event, uri) {
+  if (!event.ctrlKey || !/^https?:\/\//i.test(uri)) return;
+  window.open(uri, '_blank', 'noopener');
+}
 
 export function createPanel(initialPanel, actions, theme) {
   let panel = initialPanel;
@@ -84,6 +94,9 @@ export function createPanel(initialPanel, actions, theme) {
     // still marked proposed. The version is pinned, so this cannot change
     // under us without the change being asked for.
     allowProposedApi: true,
+    // Links an agent marks up itself (OSC 8). Without a handler xterm asks
+    // with the browser's confirm box before opening one.
+    linkHandler: { activate: openAddress, allowNonHttpProtocols: false },
   });
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
@@ -102,13 +115,36 @@ export function createPanel(initialPanel, actions, theme) {
     if (!replaying) actions.input(panel.id, data);
   });
 
-  // Ctrl+F belongs to the dashboard rather than to the agent: without this the
-  // terminal would forward it and the agent would see a stray keystroke.
+  // Addresses that are only text in the output become links too. Loaded on
+  // the side, so a server started before this addon existed still serves a
+  // working terminal, just without them.
+  let disposed = false;
+  import('/vendor/addon-web-links/lib/addon-web-links.mjs')
+    .then(({ WebLinksAddon }) => {
+      if (!disposed) terminal.loadAddon(new WebLinksAddon(openAddress));
+    })
+    .catch(() => {});
+
+  // Two keys belong to the dashboard rather than to the agent. Ctrl+F opens
+  // the find bar; forwarded, the agent would see a stray keystroke. Ctrl+C with
+  // text selected copies it, as in Windows Terminal; forwarded, it would reach
+  // the agent as an interrupt, so copying something Claude wrote would stop
+  // Claude. With nothing selected, Ctrl+C still goes to the agent.
   terminal.attachCustomKeyEventHandler((event) => {
-    if (event.type !== 'keydown' || !event.ctrlKey || event.shiftKey || event.altKey) return true;
-    if (event.key !== 'f' && event.key !== 'F') return true;
-    openFind();
-    return false;
+    if (!event.ctrlKey || event.altKey || event.metaKey) return true;
+    const key = event.key.toLowerCase();
+    if (key === 'c' && terminal.hasSelection()) {
+      if (event.type === 'keydown') {
+        copyText(terminal.getSelection());
+        terminal.clearSelection();
+      }
+      return false;
+    }
+    if (key === 'f' && !event.shiftKey) {
+      if (event.type === 'keydown') openFind();
+      return false;
+    }
+    return true;
   });
 
   searchAddon.onDidChangeResults((results) => {
@@ -250,6 +286,7 @@ ${panel.cwd}`;
     focusTerminal: () => terminal.focus(),
     openFind,
     dispose() {
+      disposed = true;
       observer.disconnect();
       terminal.dispose();
       element.remove();
