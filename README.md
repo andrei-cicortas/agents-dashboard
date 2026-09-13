@@ -265,7 +265,7 @@ Restart the dashboard (Settings → stop, then the shortcut).
   their threads, chats):
   `%APPDATA%\agents-dashboard\state.json`
 - Server logs: `%APPDATA%\agents-dashboard\server.log` and `server-error.log`
-- The window's size and title bar colours: `%APPDATA%\agents-dashboard\window.json`
+- The window's size, zoom and title bar colours: `%APPDATA%\agents-dashboard\window.json`
 - Anything that stopped the window opening: `%APPDATA%\agents-dashboard\window-error.log`
 - The window's page engine data (the Dark/Light choice among it):
   `%LOCALAPPDATA%\agents-dashboard\webview`

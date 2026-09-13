@@ -172,6 +172,24 @@ $creation.UserDataFolder = $ProfileDir
 $webView.CreationProperties = $creation
 $form.Controls.Add($webView)
 
+# Zoom, which a laptop screen often wants, kept between launches. The steps
+# are the ones a browser uses.
+$zoomSteps = @(0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0)
+if ($saved -and $saved.zoom) {
+  $savedZoom = [double]$saved.zoom
+  if ($savedZoom -ge 0.5 -and $savedZoom -le 3) { $webView.ZoomFactor = $savedZoom }
+}
+
+function Step-Zoom([int]$step) {
+  $current = $webView.ZoomFactor
+  $next = switch ([Math]::Sign($step)) {
+    1 { $zoomSteps | Where-Object { $_ -gt $current + 0.001 } | Select-Object -First 1 }
+    -1 { $zoomSteps | Where-Object { $_ -lt $current - 0.001 } | Select-Object -Last 1 }
+    default { 1.0 }
+  }
+  if ($next) { $webView.ZoomFactor = $next }
+}
+
 # ---- What the page asks of the window --------------------------------------
 
 function Set-Chrome($message) {
@@ -217,6 +235,7 @@ function Receive-PageMessage($e) {
   switch ($message.type) {
     'window:theme' { Set-Chrome $message }
     'window:close' { $form.Close() }
+    'window:zoom' { Step-Zoom ([int]$message.step) }
     'window:notify' {
       if (-not [AgentsDashboard.Native]::IsForeground($form.Handle)) {
         Show-Toast ([string]$message.id) ([string]$message.text)
@@ -357,6 +376,7 @@ $form.add_FormClosing({
     [ordered]@{
       bounds = [ordered]@{ x = $placement.X; y = $placement.Y; width = $placement.Width; height = $placement.Height }
       maximized = [bool]$maximized
+      zoom = [Math]::Round($webView.ZoomFactor, 3)
       chrome = $script:chrome
     } | ConvertTo-Json -Depth 4 | Set-Content -Path $statePath -Encoding UTF8
   } catch {

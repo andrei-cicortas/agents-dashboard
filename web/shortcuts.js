@@ -5,7 +5,10 @@
 // everything else is left alone the moment the caret is in a terminal or a box
 // someone is typing in.
 
+import { inWindow } from './desktop.js';
+
 const TABS = ['agent', 'code', 'chat'];
+const ZOOM_STEPS = { '=': 1, '+': 1, '-': -1, 0: 0 };
 
 const typingIn = (target) => Boolean(target?.closest?.('input, textarea, [contenteditable="true"]'));
 const inTerminal = (target) => Boolean(target?.closest?.('.terminal-host'));
@@ -39,6 +42,15 @@ export function installShortcuts(actions, model) {
 
     // Ctrl+F is handled by the panel itself, which has the terminal to search.
     if (inTerminal(event.target)) return;
+
+    // Zoom, in the app window, where the browser's own keys for it are off.
+    // Outside a terminal only: in one, Ctrl+- is the agent's undo.
+    const zoomStep = ZOOM_STEPS[event.key];
+    if (inWindow && zoomStep !== undefined) {
+      event.preventDefault();
+      actions.zoom(zoomStep);
+      return;
+    }
 
     if (event.key === 'b' || event.key === 'B') {
       if (event.shiftKey) return;

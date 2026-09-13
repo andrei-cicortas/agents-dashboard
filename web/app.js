@@ -20,7 +20,7 @@ import { cssVariables, DEFAULT_THEME_ID, otherTheme, themeById } from '/shared/t
 import { windowChrome } from '/shared/window-chrome.js';
 import { notificationSubject, notificationText } from '/shared/labels.js';
 import { newlyUnread } from '/shared/toasts.js';
-import { onWindowMessage, tellWindow } from './desktop.js';
+import { inWindow, onWindowMessage, tellWindow } from './desktop.js';
 import { ask, askText } from './dialog.js';
 
 const PREFS_KEY = 'agents-dashboard-ui';
@@ -302,6 +302,12 @@ const actions = {
     render();
   },
 
+  // 1 bigger, -1 smaller, 0 back to actual size. Only the app window zooms
+  // this way; a browser has its own keys for it.
+  zoom(step) {
+    tellWindow({ type: 'window:zoom', step });
+  },
+
   async stopAll() {
     const running = model.state?.panels.filter(isActive).length ?? 0;
     const sure = await ask(running
@@ -524,8 +530,11 @@ const COMMANDS = [
   { id: 'tidy', label: 'Tidy the panels', hint: 'Command', run: () => { actions.setTab('code'); actions.tidyLayout(); } },
   { id: 'theme', label: 'Switch theme', hint: 'Dark and Light', run: () => actions.setTheme(otherTheme(model.theme).id) },
   { id: 'sidebar', label: 'Show or hide the sidebar', hint: 'Ctrl+B', run: () => actions.toggleSidebar() },
+  { id: 'zoom-in', label: 'Zoom in', hint: 'Ctrl+=', windowOnly: true, run: () => actions.zoom(1) },
+  { id: 'zoom-out', label: 'Zoom out', hint: 'Ctrl+-', windowOnly: true, run: () => actions.zoom(-1) },
+  { id: 'zoom-reset', label: 'Actual size', hint: 'Ctrl+0', windowOnly: true, run: () => actions.zoom(0) },
   { id: 'stop-all', label: 'Stop all agents and close', hint: 'Command', run: () => actions.stopAll() },
-];
+].filter((command) => inWindow || !command.windowOnly);
 
 const topbar = createTopbar(byId('topbar'), actions);
 const bell = createBell(topbar.bellMount, actions);
