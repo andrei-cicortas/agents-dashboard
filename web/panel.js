@@ -147,6 +147,16 @@ export function createPanel(initialPanel, actions, theme) {
     return true;
   });
 
+  // Right-click with text selected copies it, as in Windows Terminal: the
+  // browser's own menu cannot, because a terminal's selection is not a page
+  // selection. With nothing selected the usual menu comes up, Paste on it.
+  host.addEventListener('contextmenu', (event) => {
+    if (!terminal.hasSelection()) return;
+    event.preventDefault();
+    copyText(terminal.getSelection());
+    terminal.clearSelection();
+  }, true);
+
   searchAddon.onDidChangeResults((results) => {
     findCount.textContent = matchLabel({ term: findInput.value, ...results });
   });
