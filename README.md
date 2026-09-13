@@ -32,7 +32,15 @@ right-click **Agents Dashboard**, **Pin to taskbar**.
 
 1. Install Node.js 24+ (https://nodejs.org), Git (https://git-scm.com) and
    Claude Code, and run `claude` once to log in.
-2. `git clone <the repository address>` wherever you keep projects.
+2. In a terminal, in the folder where you keep projects:
+
+   ```powershell
+   git clone https://github.com/AndreiNOG17/agents-dashboard.git "Agents Dashboard"
+   cd "Agents Dashboard"
+   ```
+
+   The repository is private, so the first time Git opens a browser to sign in
+   to GitHub.
 3. Run the install command above in that folder.
 
 The folders, chats and agents you set up are kept per PC, not in the
