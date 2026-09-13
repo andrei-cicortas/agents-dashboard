@@ -401,6 +401,15 @@ $form.add_Shown({
 
 $null = $form.Handle
 [AgentsDashboard.Native]::ConsumeStartupShowState($form.Handle)
+# The taskbar's name and icon for this window, and what a pin on it runs. The
+# process is PowerShell started by conhost, so without this the taskbar menu
+# says "Console Window Host".
+$relaunchCommand = "`"$env:WINDIR\System32\conhost.exe`" --headless `"$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe`" -NoProfile -ExecutionPolicy Bypass -File `"$root\scripts\launch.ps1`""
+try {
+  [AgentsDashboard.Native]::SetTaskbarIdentity($form.Handle, $appId, $relaunchCommand, 'Agents Dashboard', "$root\assets\icon.ico,0")
+} catch {
+  Write-ErrorLog "Could not give the window its taskbar name and icon: $_"
+}
 Set-TitleBar
 [System.Windows.Forms.Application]::Run($form)
 $activateTimer.Dispose()

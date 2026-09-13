@@ -128,6 +128,120 @@ namespace AgentsDashboard
             FlashWindowEx(ref info);
         }
 
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        private struct PropertyKey
+        {
+            public Guid FormatId;
+            public uint PropertyId;
+        }
+
+        // Only the part of PROPVARIANT a string needs, padded to its full size.
+        [StructLayout(LayoutKind.Explicit)]
+        private struct PropVariant
+        {
+            [FieldOffset(0)] public ushort Type;
+            [FieldOffset(8)] public IntPtr Pointer;
+            [FieldOffset(16)] public IntPtr Padding;
+        }
+
+        [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("886D8EEB-8CF2-4446-8D02-CDBA1DBDCF99")]
+        private interface IPropertyStore
+        {
+            void GetCount(out uint count);
+            void GetAt(uint index, out PropertyKey key);
+            void GetValue(ref PropertyKey key, out PropVariant value);
+            void SetValue(ref PropertyKey key, ref PropVariant value);
+            void Commit();
+        }
+
+        [DllImport("shell32.dll")]
+        private static extern int SHGetPropertyStoreForWindow(IntPtr hwnd, ref Guid iid, [MarshalAs(UnmanagedType.Interface)] out IPropertyStore store);
+
+        [DllImport("ole32.dll")]
+        private static extern int PropVariantClear(ref PropVariant value);
+
+        private const ushort VtLpwstr = 31;
+        private static readonly Guid AppUserModelKeys = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3");
+        private const uint RelaunchCommandKey = 2;
+        private const uint RelaunchIconKey = 3;
+        private const uint RelaunchNameKey = 4;
+        private const uint AppIdKey = 5;
+
+        private static IPropertyStore WindowProperties(IntPtr hwnd)
+        {
+            Guid iid = typeof(IPropertyStore).GUID;
+            IPropertyStore store;
+            int result = SHGetPropertyStoreForWindow(hwnd, ref iid, out store);
+            if (result != 0) Marshal.ThrowExceptionForHR(result);
+            return store;
+        }
+
+        private static void SetString(IPropertyStore store, uint propertyId, string text)
+        {
+            PropertyKey key = new PropertyKey();
+            key.FormatId = AppUserModelKeys;
+            key.PropertyId = propertyId;
+            PropVariant value = new PropVariant();
+            value.Type = VtLpwstr;
+            value.Pointer = Marshal.StringToCoTaskMemUni(text);
+            try
+            {
+                store.SetValue(ref key, ref value);
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(value.Pointer);
+            }
+        }
+
+        // What the taskbar shows for this window: the name in its right-click
+        // menu, and the icon and command a pin uses. Left to itself, Windows
+        // names the program that started the process — conhost.exe, "Console
+        // Window Host". The relaunch details go first and the ID last, which
+        // is when the taskbar reads them all.
+        public static void SetTaskbarIdentity(IntPtr hwnd, string appId, string relaunchCommand, string displayName, string iconResource)
+        {
+            IPropertyStore store = WindowProperties(hwnd);
+            try
+            {
+                SetString(store, RelaunchCommandKey, relaunchCommand);
+                SetString(store, RelaunchNameKey, displayName);
+                SetString(store, RelaunchIconKey, iconResource);
+                SetString(store, AppIdKey, appId);
+                store.Commit();
+            }
+            finally
+            {
+                Marshal.ReleaseComObject(store);
+            }
+        }
+
+        // Reads one of those back (2 command, 3 icon, 4 name, 5 ID), to check.
+        public static string GetTaskbarProperty(IntPtr hwnd, uint propertyId)
+        {
+            IPropertyStore store = WindowProperties(hwnd);
+            try
+            {
+                PropertyKey key = new PropertyKey();
+                key.FormatId = AppUserModelKeys;
+                key.PropertyId = propertyId;
+                PropVariant value;
+                store.GetValue(ref key, out value);
+                try
+                {
+                    return value.Type == VtLpwstr ? Marshal.PtrToStringUni(value.Pointer) : null;
+                }
+                finally
+                {
+                    PropVariantClear(ref value);
+                }
+            }
+            finally
+            {
+                Marshal.ReleaseComObject(store);
+            }
+        }
+
         private static int ToColorRef(int rgb)
         {
             return ((rgb & 0xFF) << 16) | (rgb & 0xFF00) | ((rgb >> 16) & 0xFF);
