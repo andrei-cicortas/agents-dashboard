@@ -17,6 +17,8 @@ import { isActive, sameFolder } from '/shared/status.js';
 import { reconcile, tidy } from '/shared/tiling.js';
 import { mergeLayouts } from '/shared/layout-sync.js';
 import { cssVariables, DEFAULT_THEME_ID, otherTheme, themeById } from '/shared/themes.js';
+import { windowChrome } from '/shared/window-chrome.js';
+import { tellWindow } from './desktop.js';
 
 const PREFS_KEY = 'agents-dashboard-ui';
 const DEFAULT_ADDRESS = 'http://localhost:3000';
@@ -503,6 +505,8 @@ function applyTheme() {
     document.documentElement.style.setProperty(name, value);
   }
   canvas.setTheme(model.theme);
+  // The title bar belongs to the window, so it is told rather than styled.
+  tellWindow(windowChrome(model.theme));
 }
 
 applyTheme();
@@ -572,10 +576,19 @@ function render() {
 render();
 installShortcuts(actions, model);
 
+// The unread count last seen, to notice it going up. null until the first
+// state, so opening the window on old notifications flashes nothing.
+let seenUnread = null;
+
 const api = connect({
   onMessage(message) {
     if (message.type === 'state') {
       model.state = message;
+      // Something new rang the bell: the window flashes its taskbar button,
+      // which it only does while it is not the one in front.
+      const unread = message.unread ?? 0;
+      if (seenUnread !== null && unread > seenUnread) tellWindow({ type: 'window:attention' });
+      seenUnread = unread;
       // The chat we asked the server to start: open it, now that it has an id.
       if (pendingChat && (message.chats ?? []).length) {
         model.selectedChatId = message.chats.at(-1).id;
@@ -605,6 +618,8 @@ const api = connect({
     } else if (message.type === 'server:stopped') {
       byId('stopped').hidden = false;
       byId('banner').hidden = true;
+      // "Stop all agents and close": in the app window, close means the window.
+      tellWindow({ type: 'window:close' });
     }
   },
   onConnectionChange(connected) {

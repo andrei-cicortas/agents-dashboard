@@ -4,30 +4,61 @@ A desktop dashboard for running several AI coding agents side by side, each in
 its own real terminal and project folder. It currently supports **Claude Code**
 and **Codex**.
 
-The app is a small Node.js server plus a web page shown in a Microsoft Edge
-app window. The server keeps the agents running even when the window is closed.
+The app is a small Node.js server plus its own Windows app window. The server
+keeps the agents running even when the window is closed.
 
 ## Requirements
 
 - Windows 11
 - Node.js 24 or newer
-- Microsoft Edge (comes with Windows)
+- Git (to get the code onto a new PC)
 - Claude Code, logged in: run `claude` once in a terminal and follow the login
 - Optional: Codex — `npm install -g @openai/codex`, then `codex login`
 
 ## First-time setup
 
+In the project folder:
+
 ```powershell
-npm install
-npm test
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\create-shortcut.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install.ps1
 ```
 
-This puts an **Agents Dashboard** shortcut on your desktop.
+It installs the packages, fetches the parts the window is made of, and puts
+**Agents Dashboard** on the desktop and in the Start menu. Run it again any
+time; it only does what is missing. To put the app on the taskbar: open Start,
+right-click **Agents Dashboard**, **Pin to taskbar**.
+
+## On another PC
+
+1. Install Node.js 24+ (https://nodejs.org), Git (https://git-scm.com) and
+   Claude Code, and run `claude` once to log in.
+2. `git clone <the repository address>` wherever you keep projects.
+3. Run the install command above in that folder.
+
+The folders, chats and agents you set up are kept per PC, not in the
+repository, so the second PC starts empty. After `git pull`, run the install
+again and reopen the app.
+
+## The window
+
+The window is a native Windows window, not a browser. Smart App Control, which
+is on for this PC, blocks programs that are not signed — Electron apps among
+them — so the window is built only from parts Microsoft signed: Windows
+PowerShell, .NET and WebView2, the page engine Windows itself uses.
+`desktop/window.ps1` is the window, and `scripts/launch.ps1` opens it.
+
+- There is one window. Opening the app again brings it to the front.
+- It remembers its size, position and whether it was maximised.
+- The title bar follows Dark and Light.
+- When something new rings the bell while the window is behind others, its
+  taskbar button flashes.
+- Links open in your own browser. Ctrl+F, Ctrl+N and the other shortcuts belong
+  to the app, not to a browser.
+- **Stop all agents and close** closes the window too.
 
 ## Daily use
 
-1. Double-click **Agents Dashboard** on the desktop.
+1. Open **Agents Dashboard** from the desktop, Start or the taskbar.
 2. Click **+** next to "Workspaces". Walk down to the folder — it starts at the
    drives — or paste its path and press Enter, then **Add this folder**.
 3. Hover the project, click **+**, and pick Claude Code or Codex.
@@ -183,8 +214,8 @@ The button in the sidebar's account card switches between the two. It shows
 where a click would take you: a sun on the dark theme, a moon on the light one.
 The terminals change with the rest of the app, palette included — the usual
 bright colours are invisible on white, so the light theme has its own sixteen.
-The choice is kept in the browser, so it belongs to the window rather than to
-the agents.
+The choice is kept by the window rather than by the server, so it belongs to the
+window rather than to the agents, and the title bar changes with it.
 
 Both themes live in `shared/themes.js`, and they carry the whole palette: the
 solid colours, and the translucent veils, rings and shadows every surface is
@@ -194,7 +225,7 @@ its own; a test fails if anything starts to.
 
 Closing the window does **not** stop the agents. Open the shortcut again to see
 them. **Settings** (the gear in the account card) stops all agents and the
-server.
+server, and closes the window.
 
 ## How a panel finds its conversation again
 
@@ -230,15 +261,21 @@ Restart the dashboard (Settings → stop, then the shortcut).
   their threads, chats):
   `%APPDATA%\agents-dashboard\state.json`
 - Server logs: `%APPDATA%\agents-dashboard\server.log` and `server-error.log`
+- The window's size and title bar colours: `%APPDATA%\agents-dashboard\window.json`
+- Anything that stopped the window opening: `%APPDATA%\agents-dashboard\window-error.log`
+- The window's page engine data (the Dark/Light choice among it):
+  `%LOCALAPPDATA%\agents-dashboard\webview`
 
 ## Troubleshooting
 
 - **"Port 4317 is used by another program"**: another app uses that port. Close it.
 - **A panel says the agent is not installed**: install it, then click Retry.
 - **Claude Code panel asks to log in**: log in inside the panel, or run `claude` once in a normal terminal.
-- **Nothing happens when double-clicking the shortcut**: run
+- **"The window's WebView2 parts are missing"**: run `scripts\install.ps1`.
+- **Nothing happens when opening the app**: check `window-error.log` and
+  `server-error.log`, or run
   `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\launch.ps1` in a
-  terminal to see the error, and check `server-error.log`.
+  terminal to see the error.
 
 ## Trying the UI without real agents
 
@@ -246,15 +283,28 @@ Restart the dashboard (Settings → stop, then the shortcut).
 node test/fixtures/dev-setup.js
 $env:DASHBOARD_AGENTS_FILE = "$PWD\test\.tmp\dev\agents.json"
 $env:DASHBOARD_STATE_FILE = "$PWD\test\.tmp\dev\state.json"
+$env:DASHBOARD_SERVER_PORT = "4318"
 node server/index.js
 ```
 
-Open http://127.0.0.1:4317. The "Test Agent" echoes what you type; type
-`notify` or `done` to ring the bell.
+Port 4318 keeps it clear of the real dashboard. Open it in a browser at
+http://127.0.0.1:4318, or in the app window from a second terminal:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\launch.ps1 -Port 4318 -DataDir "$PWD\test\.tmp\dev\window" -ProfileDir "$PWD\test\.tmp\dev\webview" -DevTools
+```
+
+The "Test Agent" echoes what you type; type `notify` or `done` to ring the bell.
 
 ## Manual checklist (real agents)
 
-- [ ] Double-click the shortcut → the dashboard window opens.
+- [ ] Double-click the shortcut → the dashboard window opens, with no console
+      window and no browser frame, and the app's icon on the taskbar.
+- [ ] Open it again while it is open → the same window comes to the front.
+- [ ] Pin it from Start → the pinned icon and the open window are one button.
+- [ ] Resize and move it, close it, open it again → same size and place.
+- [ ] Switch to Light → the title bar turns light too.
+- [ ] Click a link in a chat answer → it opens in the browser, not in the app.
 - [ ] Add a project folder with **+** → it appears under Workspaces.
 - [ ] Pin it → it moves under "Pinned".
 - [ ] Start Claude Code → the panel shows Claude's prompt; send a message and get a reply.

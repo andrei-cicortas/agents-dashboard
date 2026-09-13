@@ -1,18 +1,38 @@
-# Starts the dashboard server if it is not running, then opens the app window.
-# Run by the desktop shortcut through powershell.exe (signed, so Smart App
-# Control allows it).
+# Opens Agents Dashboard. If its window is already open, brings that one to the
+# front. Otherwise starts the server when it is not running, then opens the app
+# window (desktop\window.ps1).
+#
+# The shortcuts run this through `conhost.exe --headless powershell.exe`, so no
+# console window appears. Everything involved is signed, which is what Smart
+# App Control asks for.
+
+param(
+  [int]$Port = 4317,
+  [string]$DataDir = (Join-Path $env:APPDATA 'agents-dashboard'),
+  [string]$ProfileDir = (Join-Path $env:LOCALAPPDATA 'agents-dashboard\webview'),
+  # For development: open DevTools with the window, or let a debugger attach.
+  [switch]$DevTools,
+  [int]$DebugPort = 0
+)
 
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
-$port = 4317
-$url = "http://127.0.0.1:$port"
-$dataDir = Join-Path $env:APPDATA 'agents-dashboard'
-New-Item -ItemType Directory -Force $dataDir | Out-Null
+$url = "http://127.0.0.1:$Port"
+New-Item -ItemType Directory -Force $DataDir | Out-Null
+$errorLog = Join-Path $DataDir 'window-error.log'
 
 function Show-Message([string]$text) {
-  Add-Type -AssemblyName PresentationFramework
-  [System.Windows.MessageBox]::Show($text, 'Agents Dashboard') | Out-Null
+  Add-Type -AssemblyName System.Windows.Forms
+  [System.Windows.Forms.MessageBox]::Show($text, 'Agents Dashboard') | Out-Null
+}
+
+# Nobody can see this script, so whatever stops it is shown and logged.
+trap {
+  $details = $_ | Out-String
+  try { Add-Content -Path $errorLog -Value "$(Get-Date -Format o) $details" } catch { }
+  Show-Message "Agents Dashboard could not open.`n`n$($_.Exception.Message)`n`nDetails are in $errorLog"
+  exit 1
 }
 
 function Test-Dashboard {
@@ -25,12 +45,31 @@ function Test-Dashboard {
 }
 
 function Test-PortBusy {
-  return $null -ne (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+  return $null -ne (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
 }
+
+# ---- One window ------------------------------------------------------------
+
+$windowMutex = [System.Threading.Mutex]::new($false, "Local\AgentsDashboard.Window.$Port")
+$activate = [System.Threading.EventWaitHandle]::new($false, [System.Threading.EventResetMode]::AutoReset, "Local\AgentsDashboard.Activate.$Port")
+try {
+  $ownsWindow = $windowMutex.WaitOne(0)
+} catch [System.Threading.AbandonedMutexException] {
+  # The last window ended without letting go, which makes it ours now.
+  $ownsWindow = $true
+}
+if (-not $ownsWindow) {
+  Add-Type -TypeDefinition (Get-Content -Raw (Join-Path $root 'desktop\Native.cs'))
+  [AgentsDashboard.Native]::AllowAnyForeground()
+  $activate.Set() | Out-Null
+  exit 0
+}
+
+# ---- The server ------------------------------------------------------------
 
 if (-not (Test-Dashboard)) {
   if (Test-PortBusy) {
-    Show-Message "Port $port is used by another program, so the dashboard cannot start. Close that program and try again."
+    Show-Message "Port $Port is used by another program, so the dashboard cannot start. Close that program and try again."
     exit 1
   }
 
@@ -40,31 +79,29 @@ if (-not (Test-Dashboard)) {
     exit 1
   }
 
+  # The server keeps its state beside the window's, so a trial run with its
+  # own -DataDir can never write over the real state.
+  $env:DASHBOARD_SERVER_PORT = [string]$Port
+  $env:DASHBOARD_STATE_FILE = Join-Path $DataDir 'state.json'
   Start-Process -FilePath $node.Source `
     -ArgumentList "`"$root\server\index.js`"" `
     -WorkingDirectory $root `
     -WindowStyle Hidden `
-    -RedirectStandardOutput (Join-Path $dataDir 'server.log') `
-    -RedirectStandardError (Join-Path $dataDir 'server-error.log')
+    -RedirectStandardOutput (Join-Path $DataDir 'server.log') `
+    -RedirectStandardError (Join-Path $DataDir 'server-error.log')
 
   $deadline = (Get-Date).AddSeconds(15)
   while (-not (Test-Dashboard)) {
     if ((Get-Date) -gt $deadline) {
-      Show-Message "The dashboard server did not start. Details are in $dataDir\server-error.log"
+      Show-Message "The dashboard server did not start. Details are in $DataDir\server-error.log"
       exit 1
     }
     Start-Sleep -Milliseconds 300
   }
 }
 
-$edgeCandidates = @(
-  (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'),
-  (Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe')
-)
-$edge = $edgeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $edge) {
-  Show-Message 'Microsoft Edge was not found. It is needed to show the dashboard window.'
-  exit 1
-}
+# ---- The window ------------------------------------------------------------
 
-Start-Process -FilePath $edge -ArgumentList "--app=$url", '--window-size=1600,950'
+& (Join-Path $root 'desktop\window.ps1') -Url $url -DataDir $DataDir -ProfileDir $ProfileDir `
+  -Activate $activate -DebugPort $DebugPort -DevTools:$DevTools
+$windowMutex.ReleaseMutex()
