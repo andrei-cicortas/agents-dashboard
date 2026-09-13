@@ -11,6 +11,7 @@ import { dotClass } from '/shared/status.js';
 import { findDecorations, terminalTheme } from '/shared/themes.js';
 import { agentColour, agentInitial } from './agent-mark.js';
 import { matchLabel } from '/shared/find.js';
+import { terminalKey } from '/shared/terminal-keys.js';
 import { copyText } from './clipboard.js';
 
 // An address in an agent's output — a login page, a pull request — opens in
@@ -125,26 +126,25 @@ export function createPanel(initialPanel, actions, theme) {
     })
     .catch(() => {});
 
-  // Two keys belong to the dashboard rather than to the agent. Ctrl+F opens
+  // A few keys belong to the dashboard rather than to the agent. Ctrl+F opens
   // the find bar; forwarded, the agent would see a stray keystroke. Ctrl+C with
   // text selected copies it, as in Windows Terminal; forwarded, it would reach
   // the agent as an interrupt, so copying something Claude wrote would stop
   // Claude. With nothing selected, Ctrl+C still goes to the agent.
+  //
+  // Ctrl+V pastes. The terminal would turn it into ^V for the agent and cancel
+  // the key, so the browser never pasted — and everything Wispr Flow dictated
+  // was lost, because it pastes with Ctrl+V. Refused here but not cancelled,
+  // the key goes on to the browser, and the terminal types what it pastes.
   terminal.attachCustomKeyEventHandler((event) => {
-    if (!event.ctrlKey || event.altKey || event.metaKey) return true;
-    const key = event.key.toLowerCase();
-    if (key === 'c' && terminal.hasSelection()) {
-      if (event.type === 'keydown') {
-        copyText(terminal.getSelection());
-        terminal.clearSelection();
-      }
-      return false;
+    const use = terminalKey(event, { hasSelection: terminal.hasSelection() });
+    if (use === 'agent') return true;
+    if (event.type === 'keydown' && use === 'copy') {
+      copyText(terminal.getSelection());
+      terminal.clearSelection();
     }
-    if (key === 'f' && !event.shiftKey) {
-      if (event.type === 'keydown') openFind();
-      return false;
-    }
-    return true;
+    if (event.type === 'keydown' && use === 'find') openFind();
+    return false;
   });
 
   // Right-click with text selected copies it, as in Windows Terminal: the

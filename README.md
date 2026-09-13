@@ -131,6 +131,7 @@ name also finds everything working in that folder.
 | `Ctrl+N` | New chat, or a new thread for the agent you are on |
 | `Ctrl+F` | Find in the panel you are in |
 | `Ctrl+C` | In a terminal with text selected: copy it. With nothing selected it goes to the agent, as always |
+| `Ctrl+V` | In a terminal: paste, as in Windows Terminal (`Ctrl+Shift+V` too). Dictation apps such as Wispr Flow put their text in this way |
 | `Ctrl`+click | Open an address shown in a terminal, in your browser |
 
 The terminals get every other key, so nothing here is taken away from an agent.
@@ -347,6 +348,8 @@ The "Test Agent" echoes what you type; type `notify` or `done` to ring the bell.
       through them, and the agent never sees the keystroke.
 - [ ] Ctrl+3 with the caret in a terminal → the Chat tab opens and the agent
       gets nothing (no stray Escape).
+- [ ] Copy some text, click in a terminal, Ctrl+V → the text is at the agent's
+      prompt. Dictate into the terminal with Wispr Flow → the words land there too.
 - [ ] Ctrl+K, type a few letters of a folder → Enter opens it on the Code tab.
 - [ ] Ctrl+K, type part of a chat name → Enter opens that chat on the Chat tab.
 - [ ] A folder's **...** → Open in Explorer → the folder opens in a window.
