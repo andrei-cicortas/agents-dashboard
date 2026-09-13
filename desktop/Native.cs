@@ -242,6 +242,61 @@ namespace AgentsDashboard
             }
         }
 
+        [ComImport, Guid("56FDF344-FD6D-11d0-958A-006097C9A090")]
+        private class TaskbarListClass
+        {
+        }
+
+        // ITaskbarList3, with every method before SetOverlayIcon declared so
+        // the one that is used sits at the right place in the table.
+        [ComImport, InterfaceType(ComInterfaceType.InterfaceIsIUnknown), Guid("EA1AFB91-9E28-4B86-90E9-9E9F8A5EEFAF")]
+        private interface ITaskbarList3
+        {
+            [PreserveSig] int HrInit();
+            [PreserveSig] int AddTab(IntPtr hwnd);
+            [PreserveSig] int DeleteTab(IntPtr hwnd);
+            [PreserveSig] int ActivateTab(IntPtr hwnd);
+            [PreserveSig] int SetActiveAlt(IntPtr hwnd);
+            [PreserveSig] int MarkFullscreenWindow(IntPtr hwnd, [MarshalAs(UnmanagedType.Bool)] bool fullscreen);
+            [PreserveSig] int SetProgressValue(IntPtr hwnd, ulong completed, ulong total);
+            [PreserveSig] int SetProgressState(IntPtr hwnd, int flags);
+            [PreserveSig] int RegisterTab(IntPtr tab, IntPtr parent);
+            [PreserveSig] int UnregisterTab(IntPtr tab);
+            [PreserveSig] int SetTabOrder(IntPtr tab, IntPtr insertBefore);
+            [PreserveSig] int SetTabActive(IntPtr tab, IntPtr parent, uint reserved);
+            [PreserveSig] int ThumbBarAddButtons(IntPtr hwnd, uint count, IntPtr buttons);
+            [PreserveSig] int ThumbBarUpdateButtons(IntPtr hwnd, uint count, IntPtr buttons);
+            [PreserveSig] int ThumbBarSetImageList(IntPtr hwnd, IntPtr imageList);
+            [PreserveSig] int SetOverlayIcon(IntPtr hwnd, IntPtr icon, [MarshalAs(UnmanagedType.LPWStr)] string description);
+        }
+
+        [DllImport("user32.dll")]
+        private static extern bool DestroyIcon(IntPtr icon);
+
+        private static ITaskbarList3 taskbar;
+        private static IntPtr overlayIcon = IntPtr.Zero;
+
+        // A small picture over the taskbar button, such as an unread count.
+        // IntPtr.Zero takes it away. The taskbar keeps its own copy, so the
+        // icon handed over before this one is freed. Returns the HRESULT.
+        public static int SetOverlay(IntPtr hwnd, IntPtr icon, string description)
+        {
+            if (taskbar == null)
+            {
+                taskbar = (ITaskbarList3)new TaskbarListClass();
+                int init = taskbar.HrInit();
+                if (init != 0)
+                {
+                    taskbar = null;
+                    return init;
+                }
+            }
+            int result = taskbar.SetOverlayIcon(hwnd, icon, description ?? string.Empty);
+            if (overlayIcon != IntPtr.Zero) DestroyIcon(overlayIcon);
+            overlayIcon = icon;
+            return result;
+        }
+
         private static int ToColorRef(int rgb)
         {
             return ((rgb & 0xFF) << 16) | (rgb & 0xFF00) | ((rgb >> 16) & 0xFF);

@@ -590,6 +590,9 @@ function syncLayout(path) {
 // would do changes, so a button is never swapped out under the pointer.
 let emptyActionsKey = null;
 
+// The unread count the taskbar badge was last told.
+let shownBadge = null;
+
 function drawEmptyActions(path) {
   const agents = model.state?.agents ?? [];
   const key = `${path ?? ''}|${agents.map((agent) => agent.id).join(',')}`;
@@ -626,6 +629,11 @@ function render() {
 
   const unread = model.state?.unread ?? 0;
   document.title = unread ? `(${unread}) Agents Dashboard` : 'Agents Dashboard';
+  // The same count as a badge on the taskbar button; sent only when it changes.
+  if (model.state && unread !== shownBadge) {
+    shownBadge = unread;
+    tellWindow({ type: 'window:badge', count: unread });
+  }
   // Nothing points at an agent, or at one of its threads, until there is one
   // to point at. Worked out here rather than in the view, because the window
   // has to tell the server which thread it is showing.

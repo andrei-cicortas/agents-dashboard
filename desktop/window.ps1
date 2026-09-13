@@ -233,6 +233,40 @@ function Send-OpenNotification([string]$id) {
   $webView.CoreWebView2.PostWebMessageAsJson((@{ type = 'open-notification'; id = $id } | ConvertTo-Json -Compress))
 }
 
+# The unread count as a red badge on the taskbar button, the way mail and chat
+# apps show theirs, and nothing at zero.
+$badgeCount = -1
+
+function Set-Badge([int]$count) {
+  $count = [Math]::Max(0, $count)
+  if ($count -eq $script:badgeCount) { return }
+  $script:badgeCount = $count
+  $icon = [IntPtr]::Zero
+  try {
+    if ($count -gt 0) {
+      $label = if ($count -gt 9) { '9+' } else { [string]$count }
+      $bitmap = New-Object System.Drawing.Bitmap 32, 32
+      $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+      $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+      $graphics.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+      $graphics.FillEllipse((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 229, 72, 77))), 0, 0, 32, 32)
+      $fontSize = if ($label.Length -gt 1) { 13 } else { 18 }
+      $font = New-Object System.Drawing.Font 'Segoe UI', $fontSize, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
+      $format = New-Object System.Drawing.StringFormat
+      $format.Alignment = [System.Drawing.StringAlignment]::Center
+      $format.LineAlignment = [System.Drawing.StringAlignment]::Center
+      $graphics.DrawString($label, $font, [System.Drawing.Brushes]::White, [System.Drawing.RectangleF]::new(0, 1, 32, 32), $format)
+      $graphics.Dispose()
+      $icon = $bitmap.GetHicon()
+      $bitmap.Dispose()
+    }
+    $result = [AgentsDashboard.Native]::SetOverlay($form.Handle, $icon, $(if ($count) { "$count unread" } else { '' }))
+    if ($result -ne 0) { Write-ErrorLog ("The taskbar refused the unread badge: 0x{0:X8}" -f $result) }
+  } catch {
+    Write-ErrorLog "Could not draw the unread badge: $_"
+  }
+}
+
 function Receive-PageMessage($e) {
   if (-not (Test-AppAddress $e.Source)) { return }
   try {
@@ -244,6 +278,7 @@ function Receive-PageMessage($e) {
     'window:theme' { Set-Chrome $message }
     'window:close' { $form.Close() }
     'window:zoom' { Step-Zoom ([int]$message.step) }
+    'window:badge' { Set-Badge ([int]$message.count) }
     'window:notify' {
       if (-not [AgentsDashboard.Native]::IsForeground($form.Handle)) {
         Show-Toast ([string]$message.id) ([string]$message.text)
