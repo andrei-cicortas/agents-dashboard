@@ -1,6 +1,6 @@
-# Opens Agents Dashboard. If its window is already open, brings that one to the
-# front. Otherwise starts the server when it is not running, then opens the app
-# window (desktop\window.ps1).
+# Opens Agents Dashboard. Starts the server when it is not running, then either
+# brings the window that is already open to the front or opens the app window
+# (desktop\window.ps1).
 #
 # The shortcuts run this through `conhost.exe --headless powershell.exe`, so no
 # console window appears. Everything involved is signed, which is what Smart
@@ -50,29 +50,12 @@ function Test-PortBusy {
   return $null -ne (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
 }
 
-# ---- One window ------------------------------------------------------------
-
-# Only ever an id: the link comes from outside, so nothing else of it is used.
-$notificationId = if ($Open -match 'notification=([A-Za-z0-9-]{1,64})') { $Matches[1] } else { '' }
-
-$windowMutex = [System.Threading.Mutex]::new($false, "Local\AgentsDashboard.Window.$Port")
-$activate = [System.Threading.EventWaitHandle]::new($false, [System.Threading.EventResetMode]::AutoReset, "Local\AgentsDashboard.Activate.$Port")
-try {
-  $ownsWindow = $windowMutex.WaitOne(0)
-} catch [System.Threading.AbandonedMutexException] {
-  # The last window ended without letting go, which makes it ours now.
-  $ownsWindow = $true
-}
-if (-not $ownsWindow) {
-  if ($notificationId) { Set-Content -Path (Join-Path $DataDir 'open-notification.txt') -Value $notificationId }
-  Add-Type -TypeDefinition (Get-Content -Raw (Join-Path $root 'desktop\Native.cs'))
-  [AgentsDashboard.Native]::AllowAnyForeground()
-  $activate.Set() | Out-Null
-  exit 0
-}
-
 # ---- The server ------------------------------------------------------------
 
+# Checked before anything else, even when a window is already open: a window
+# whose server has stopped would otherwise only ever be brought to the front,
+# and sit there reconnecting to nothing. Once the server is back, that window
+# reconnects on its own.
 if (-not (Test-Dashboard)) {
   if (Test-PortBusy) {
     Show-Message "Port $Port is used by another program, so the dashboard cannot start. Close that program and try again."
@@ -104,6 +87,27 @@ if (-not (Test-Dashboard)) {
     }
     Start-Sleep -Milliseconds 300
   }
+}
+
+# ---- One window ------------------------------------------------------------
+
+# Only ever an id: the link comes from outside, so nothing else of it is used.
+$notificationId = if ($Open -match 'notification=([A-Za-z0-9-]{1,64})') { $Matches[1] } else { '' }
+
+$windowMutex = [System.Threading.Mutex]::new($false, "Local\AgentsDashboard.Window.$Port")
+$activate = [System.Threading.EventWaitHandle]::new($false, [System.Threading.EventResetMode]::AutoReset, "Local\AgentsDashboard.Activate.$Port")
+try {
+  $ownsWindow = $windowMutex.WaitOne(0)
+} catch [System.Threading.AbandonedMutexException] {
+  # The last window ended without letting go, which makes it ours now.
+  $ownsWindow = $true
+}
+if (-not $ownsWindow) {
+  if ($notificationId) { Set-Content -Path (Join-Path $DataDir 'open-notification.txt') -Value $notificationId }
+  Add-Type -TypeDefinition (Get-Content -Raw (Join-Path $root 'desktop\Native.cs'))
+  [AgentsDashboard.Native]::AllowAnyForeground()
+  $activate.Set() | Out-Null
+  exit 0
 }
 
 # ---- The window ------------------------------------------------------------
