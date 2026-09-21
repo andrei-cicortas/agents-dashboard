@@ -444,7 +444,7 @@ button { font: inherit; color: inherit; }
 .divider.column::after { left: 0; right: 0; top: 50%; height: 3px; transform: translateY(-50%); }
 .divider:hover::after { background: var(--accent); }
 
-.empty, .stopped {
+.empty, .dashboard-stopped {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -696,7 +696,7 @@ button { font: inherit; color: inherit; }
   box-shadow: inset 0 0 0 1px var(--ring-strong), 0 10px 28px var(--shadow);
   font-size: 12.5px;
 }
-.stopped { position: fixed; inset: 0; z-index: 70; background: var(--bg); }
+.dashboard-stopped { position: fixed; inset: 0; z-index: 70; background: var(--bg); }
 
 /* ---------- Agent mode ----------
    The sidebar holds one rail at a time; the account card below them is shared,
