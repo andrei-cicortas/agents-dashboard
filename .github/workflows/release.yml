@@ -1,0 +1,29 @@
+# Builds the Windows installer for a version tag and attaches it to a draft
+# GitHub release, with the latest.yml the app's updater reads. Publishing the
+# draft is what makes it the version everyone is offered.
+#
+#   npm version 0.3.0 && git push --follow-tags
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

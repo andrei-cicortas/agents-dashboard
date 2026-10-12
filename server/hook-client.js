@@ -51,10 +51,12 @@ export function sendHook({ port, token, panelId, event, timeoutMs = TIMEOUT_MS }
   });
 }
 
-async function main() {
+// args are what follows the script: "claude finished", or "codex" and its JSON.
+// The desktop app calls this itself when it is started with --hook.
+export async function main(args = process.argv.slice(2)) {
   setTimeout(() => process.exit(0), TIMEOUT_MS + 1000).unref();
   const { AGENTS_DASHBOARD_PORT: port, AGENTS_DASHBOARD_TOKEN: token, AGENTS_DASHBOARD_PANEL_ID: panelId } = process.env;
-  const event = eventFromArgs(process.argv.slice(2));
+  const event = eventFromArgs(args);
   if (event && port && token && panelId) {
     await sendHook({ port: Number(port), token, panelId, event });
   }

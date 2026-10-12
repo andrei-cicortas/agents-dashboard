@@ -1,72 +1,54 @@
 # Agents Dashboard
 
-A desktop dashboard for running several AI coding agents side by side, each in
-its own real terminal and project folder. It currently supports **Claude Code**
-and **Codex**.
+A desktop app for running several AI coding agents side by side, each in its
+own real terminal and project folder. It currently supports **Claude Code**
+and **Codex**, and has a chat and named agents of its own besides.
 
-The app is a small Node.js server plus its own Windows app window. The server
-keeps the agents running even when the window is closed.
+Windows 11 only, for now.
 
-## Requirements
+## Install
 
-- Windows 11
-- Node.js 24 or newer
-- Git (to get the code onto a new PC)
-- Claude Code, logged in: run `claude` once in a terminal and follow the login
-- Optional: Codex — `npm install -g @openai/codex`, then `codex login`
+1. Install Claude Code and log in: run `claude` once in a terminal and follow
+   the login. Codex is optional — `npm install -g @openai/codex`, then
+   `codex login`.
+2. Download `Agents-Dashboard-Setup-<version>.exe` from
+   [Releases](https://github.com/AndreiNOG17/agents-dashboard/releases/latest)
+   and run it. It installs for you alone, with no administrator rights, and
+   puts **Agents Dashboard** on the desktop and in the Start menu.
 
-## First-time setup
+The installer is not signed yet, so Windows may say *"Windows protected your
+PC"*: click **More info**, then **Run anyway**. With Smart App Control turned
+on, Windows does not run unsigned apps at all.
 
-In the project folder:
+Nothing else is needed — no Node.js, no Git. The app updates itself: a new
+version downloads in the background, and installs the next time you quit, or
+straight away from **Restart to update** on the icon by the clock.
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\install.ps1
-```
-
-It installs the packages, fetches the parts the window is made of, and puts
-**Agents Dashboard** on the desktop and in the Start menu. Run it again any
-time; it only does what is missing. To put the app on the taskbar: open Start,
-right-click **Agents Dashboard**, **Pin to taskbar**.
-
-## On another PC
-
-1. Install Node.js 24+ (https://nodejs.org), Git (https://git-scm.com) and
-   Claude Code, and run `claude` once to log in.
-2. In a terminal, in the folder where you keep projects:
-
-   ```powershell
-   git clone https://github.com/AndreiNOG17/agents-dashboard.git "Agents Dashboard"
-   cd "Agents Dashboard"
-   ```
-
-   The repository is private, so the first time Git opens a browser to sign in
-   to GitHub.
-3. Run the install command above in that folder.
-
-The folders, chats and agents you set up are kept per PC, not in the
-repository, so the second PC starts empty. After `git pull`, run the install
-again and reopen the app.
+The folders, chats and agents you set up are kept per PC, so a second PC
+starts empty.
 
 ## The window
 
-The window is a native Windows window, not a browser. Smart App Control, which
-is on for this PC, blocks programs that are not signed — Electron apps among
-them — so the window is built only from parts Microsoft signed: Windows
-PowerShell, .NET and WebView2, the page engine Windows itself uses.
-`desktop/window.ps1` is the window, and `scripts/launch.ps1` opens it.
-
 - There is one window. Opening the app again brings it to the front.
-- It remembers its size, position and whether it was maximised.
+- **Closing the window does not stop the agents.** The app stays by the clock
+  with them still working; click its icon to bring the window back. The first
+  time, a notification says so.
+- Right-click that icon for **Quit**, which stops every agent (it asks first),
+  and **Start with Windows**, which opens the app in the background when you
+  sign in.
+- It remembers its size, position, zoom and whether it was maximised.
 - The title bar follows Dark and Light.
-- When something new rings the bell while the window is minimised or behind
-  others, its taskbar button flashes and Windows shows a notification. Clicking
-  the notification opens the terminal, thread or chat it is about. They can be
-  turned off like any app's, in Windows Settings → System → Notifications.
+- When something new rings the bell while the window is hidden, minimised or
+  behind others, its taskbar button flashes and Windows shows a notification.
+  Clicking the notification opens the terminal, thread or chat it is about.
+  They can be turned off like any app's, in Windows Settings → System →
+  Notifications.
+- The unread count shows as a red badge on the taskbar button.
 - Questions such as "Stop this agent?" come up in the app's own dialogs, which
   Escape cancels and Enter confirms.
 - Links open in your own browser. Ctrl+F, Ctrl+N and the other shortcuts belong
   to the app, not to a browser.
-- **Stop all agents and close** closes the window too.
+- **Stop all agents and close** quits the app.
 
 ## Daily use
 
@@ -238,9 +220,9 @@ built from — those are white on dark and black on light, which is the part a
 shelf of dark themes never needed. Nothing in `styles.css` names a colour of
 its own; a test fails if anything starts to.
 
-Closing the window does **not** stop the agents. Open the shortcut again to see
-them. **Settings** (the gear in the account card) stops all agents and the
-server, and closes the window.
+Closing the window does **not** stop the agents; click the icon by the clock to
+see them again. **Settings** (the gear in the account card) stops all agents
+and quits the app.
 
 ## How a panel finds its conversation again
 
@@ -259,7 +241,7 @@ a resume fails anyway, the panel starts fresh instead of staying dead.
 
 ## Adding another agent type
 
-Add an entry to `config/agents.json`:
+Add an entry to `config/agents.json` in the source and build the app again:
 
 - `command`: the program to run (must be on PATH)
 - `startArgs` / `resumeArgs`: arguments for a new session / for continuing one
@@ -268,65 +250,94 @@ Add an entry to `config/agents.json`:
 - `sessionSource`: `"codex"` for an agent that names its own session, so its id
   is read back after it starts rather than chosen in advance
 
-Restart the dashboard (Settings → stop, then the shortcut).
-
 ## Where things are stored
 
 - State (workspaces, panels, notifications, panel arrangements, agents and
   their threads, chats):
   `%APPDATA%\agents-dashboard\state.json`
-- Server logs: `%APPDATA%\agents-dashboard\server.log` and `server-error.log`
+- Logs: `%APPDATA%\agents-dashboard\server.log` and `server-error.log`
 - The window's size, zoom and title bar colours: `%APPDATA%\agents-dashboard\window.json`
-- Anything that stopped the window opening: `%APPDATA%\agents-dashboard\window-error.log`
 - The window's page engine data (the Dark/Light choice among it):
-  `%LOCALAPPDATA%\agents-dashboard\webview`
+  `%LOCALAPPDATA%\agents-dashboard\electron`
+
+Uninstalling the app leaves these alone, so a reinstall picks up where you
+were. Delete the two folders to start from nothing.
 
 ## Troubleshooting
 
-- **"Port 4317 is used by another program"**: another app uses that port. Close it.
+- **"Agents Dashboard is already running outside this app"**: a dashboard
+  started some other way (`npm run server`, or the old PowerShell window) is
+  using the same state. Stop it with Settings → Stop all agents and close.
 - **A panel says the agent is not installed**: install it, then click Retry.
 - **Claude Code panel asks to log in**: log in inside the panel, or run `claude` once in a normal terminal.
-- **"The window's WebView2 parts are missing"**: run `scripts\install.ps1`.
-- **Nothing happens when opening the app**: check `window-error.log` and
-  `server-error.log`, or run
-  `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\launch.ps1` in a
-  terminal to see the error.
+- **Nothing happens when opening the app**: it may already be running by the
+  clock — look for its icon there. Otherwise check `server-error.log`.
+
+## Building from source
+
+Needs Node.js 24 or newer and Git.
+
+```powershell
+git clone https://github.com/AndreiNOG17/agents-dashboard.git
+cd agents-dashboard
+npm install
+npm start          # the app, from the source
+npm test
+npm run dist       # the installer, in dist\
+```
+
+The app is an Electron window (`app/`) around a small Node.js server
+(`server/`) that runs the agents in real terminals; the page itself is plain
+ES modules in `web/` and `shared/`, with no build step. `npm run server` runs
+the server alone, to open in a browser at http://127.0.0.1:4317.
+
+F12 opens DevTools when the app runs from the source.
+
+## Releasing a version
+
+```powershell
+npm version 0.3.0      # or: npm version patch
+git push --follow-tags
+```
+
+The tag starts the Release workflow, which runs the tests, builds the
+installer and attaches it to a **draft** release on GitHub. Publishing that
+draft is what makes it the version people download, and the one every
+installed copy updates itself to. Releases have to be public for that, which
+means the repository has to be too.
 
 ## Trying the UI without real agents
 
 ```powershell
 node test/fixtures/dev-setup.js
+$env:DASHBOARD_DATA_DIR = "$PWD\test\.tmp\dev"
 $env:DASHBOARD_AGENTS_FILE = "$PWD\test\.tmp\dev\agents.json"
-$env:DASHBOARD_STATE_FILE = "$PWD\test\.tmp\dev\state.json"
 $env:DASHBOARD_SERVER_PORT = "4318"
-node server/index.js
+npm start
 ```
 
-Port 4318 keeps it clear of the real dashboard. Open it in a browser at
-http://127.0.0.1:4318, or in the app window from a second terminal:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\launch.ps1 -Port 4318 -DataDir "$PWD\test\.tmp\dev\window" -ProfileDir "$PWD\test\.tmp\dev\webview" -DevTools
-```
+`DASHBOARD_DATA_DIR` gives the trial its own state, window and lock, so it
+opens beside the real app and never touches it.
 
 The "Test Agent" echoes what you type; type `notify` or `done` to ring the bell.
 
 ## Manual checklist (real agents)
 
-- [ ] Double-click the shortcut → the dashboard window opens, with no console
-      window and no browser frame, and the app's icon on the taskbar.
+- [ ] Run the installer → **Agents Dashboard** is on the desktop and in Start,
+      and opens with the app's icon on the taskbar and no console window.
 - [ ] Open it again while it is open → the same window comes to the front.
 - [ ] Pin it from Start → the pinned icon and the open window are one button.
-- [ ] Resize and move it, close it, open it again → same size and place.
+- [ ] Resize and move it, quit, open it again → same size and place.
 - [ ] Switch to Light → the title bar turns light too.
 - [ ] Click a link in a chat answer → it opens in the browser, not in the app.
 - [ ] Minimise the window and let an agent finish → a Windows notification
-      appears; click it → the window comes back on that agent.
-- [ ] Close the window, then click that notification in the notification
-      centre → the app opens on that agent.
-- [ ] With the window open, end the server (Task Manager → node.exe) → the
-      window says Reconnecting; open the app again → the server starts and the
-      same window reconnects.
+      appears and the taskbar button shows a red count; click the
+      notification → the window comes back on that agent.
+- [ ] Close the window → a notification says the app is still running; the
+      agents keep going, and clicking the icon by the clock brings it back.
+- [ ] Right-click the icon → Quit → confirm → the app and every agent stop.
+- [ ] Right-click the icon → Start with Windows, sign out and in → the app is
+      by the clock without a window.
 - [ ] Add a project folder with **+** → it appears under Workspaces.
 - [ ] Pin it → it moves under "Pinned".
 - [ ] Start Claude Code → the panel shows Claude's prompt; send a message and get a reply.
@@ -361,7 +372,7 @@ The "Test Agent" echoes what you type; type `notify` or `done` to ring the bell.
 - [ ] Tidy → the panels square up into a grid.
 - [ ] Add a second folder, start an agent in it, switch between the two → each
       folder keeps its own arrangement and the other agents keep running.
-- [ ] Rearrange, close the window, open the shortcut again → the arrangement
+- [ ] Rearrange, close the window, open the app again → the arrangement
       comes back.
 - [ ] Open the dashboard in two windows → splitting in one shows up in the
       other, and neither undoes the other.
@@ -380,7 +391,7 @@ The "Test Agent" echoes what you type; type `notify` or `done` to ring the bell.
 - [ ] Open a second thread, ask something else → the two tabs keep their own
       conversations, and each continues where it left off after a reload.
 - [ ] Start Codex (or see the install hint if it is not installed).
-- [ ] Close the window, wait, open the shortcut again → the panels are still there with their output.
+- [ ] Close the window, wait, open the app again → the panels are still there with their output.
 - [ ] Settings → Stop all agents and close → confirm → "Dashboard stopped".
 - [ ] Open the shortcut again → the panels come back and Claude continues its conversation.
 - [ ] Leave Claude idle for more than 60 seconds after it finishes → the panel stays green (no "needs your input").

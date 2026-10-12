@@ -57,8 +57,11 @@ export function toForwardSlashes(p) {
   return p.replace(/\\/g, '/');
 }
 
-export function claudeHooksSettings({ nodePath, hookClientPath }) {
-  const base = `"${toForwardSlashes(nodePath)}" "${toForwardSlashes(hookClientPath)}" claude`;
+// hookCommand is the program that runs server/hook-client.js and the
+// arguments before the client's own: node and the script, or the app itself
+// with --hook when it runs inside the desktop app (see app/main.js).
+export function claudeHooksSettings({ hookCommand }) {
+  const base = `${hookCommand.map((item) => `"${toForwardSlashes(item)}"`).join(' ')} claude`;
   const hooks = (event) => [{ type: 'command', command: `${base} ${event}` }];
   return {
     hooks: {
@@ -70,8 +73,8 @@ export function claudeHooksSettings({ nodePath, hookClientPath }) {
   };
 }
 
-export function codexNotifyValue({ nodePath, hookClientPath }) {
-  const items = [nodePath, hookClientPath].map(toForwardSlashes);
+export function codexNotifyValue({ hookCommand }) {
+  const items = hookCommand.map(toForwardSlashes);
   if (items.some((item) => item.includes("'"))) {
     throw new Error('Paths used for Codex notify cannot contain single quotes');
   }

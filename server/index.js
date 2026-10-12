@@ -69,6 +69,9 @@ export async function startServer({
   stateFile = path.join(process.env.APPDATA ?? ROOT, 'agents-dashboard', 'state.json'),
   agentsFile = path.join(ROOT, 'config', 'agents.json'),
   pickFolder = nativePickFolder,
+  // What agents run to tell the server they finished: node and the hook
+  // client here, the app itself inside the desktop app (app/main.js).
+  hookCommand = [process.execPath, path.join(ROOT, 'server', 'hook-client.js')],
   onStop = () => {},
 } = {}) {
   const token = createToken();
@@ -83,15 +86,14 @@ export async function startServer({
   });
   const actualPort = server.address().port;
 
-  const hookClientPath = path.join(ROOT, 'server', 'hook-client.js');
   const claudeHooksFile = path.join(dataDir, 'claude-hooks.json');
-  fs.writeFileSync(claudeHooksFile, JSON.stringify(claudeHooksSettings({ nodePath: process.execPath, hookClientPath }), null, 2));
+  fs.writeFileSync(claudeHooksFile, JSON.stringify(claudeHooksSettings({ hookCommand }), null, 2));
 
   const agentManager = createAgentManager({
     agents,
     hookValues: {
       claudeHooksFile,
-      codexNotify: codexNotifyValue({ nodePath: process.execPath, hookClientPath }),
+      codexNotify: codexNotifyValue({ hookCommand }),
     },
     env: { ...process.env, AGENTS_DASHBOARD_PORT: String(actualPort), AGENTS_DASHBOARD_TOKEN: token },
   });

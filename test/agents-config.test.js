@@ -18,6 +18,7 @@ import {
 const configPath = fileURLToPath(new URL('../config/agents.json', import.meta.url));
 const nodePath = 'D:\\node.exe';
 const hookClientPath = 'C:\\Claude\\Agents Dasboard\\server\\hook-client.js';
+const hookCommand = [nodePath, hookClientPath];
 
 test('loadAgents reads Claude Code and Codex from config/agents.json', () => {
   const agents = loadAgents(configPath);
@@ -70,7 +71,7 @@ test('buildLaunch builds a Codex resume command line with a quoted notify value'
     // "the most recent one here", which every panel on the folder would share.
     sessionId: 'codex-abc',
     claudeHooksFile: 'unused',
-    codexNotify: codexNotifyValue({ nodePath, hookClientPath }),
+    codexNotify: codexNotifyValue({ hookCommand }),
   });
   assert.equal(
     launch.commandLine,
@@ -94,7 +95,7 @@ test('toForwardSlashes converts Windows separators', () => {
 });
 
 test('claudeHooksSettings registers Stop and Notification hooks', () => {
-  const settings = claudeHooksSettings({ nodePath, hookClientPath });
+  const settings = claudeHooksSettings({ hookCommand });
   const command = (event) => settings.hooks[event][0].hooks[0];
   assert.deepEqual(command('Stop'), {
     type: 'command',
@@ -106,6 +107,14 @@ test('claudeHooksSettings registers Stop and Notification hooks', () => {
   assert.equal(Object.hasOwn(settings.hooks.Stop[0], 'matcher'), false);
 });
 
+test('claudeHooksSettings runs the desktop app itself when given its --hook command', () => {
+  const settings = claudeHooksSettings({ hookCommand: ['C:\\Programs\\Agents Dashboard\\Agents Dashboard.exe', '--hook'] });
+  assert.equal(
+    settings.hooks.Stop[0].hooks[0].command,
+    '"C:/Programs/Agents Dashboard/Agents Dashboard.exe" "--hook" claude finished',
+  );
+});
+
 test('codexNotifyValue rejects paths with single quotes', () => {
-  assert.throws(() => codexNotifyValue({ nodePath, hookClientPath: "C:\\it's\\hook.js" }), /single quotes/);
+  assert.throws(() => codexNotifyValue({ hookCommand: [nodePath, "C:\\it's\\hook.js"] }), /single quotes/);
 });
