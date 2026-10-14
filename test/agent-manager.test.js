@@ -289,6 +289,8 @@ test('a failed resume of an agent that names its own session starts it without a
     exists: () => true,
     kill: () => {},
     newSessionId: () => 'invented',
+    // Codex still has the conversation, so it is resumed, and fails anyway.
+    hasSession: () => true,
     spawn: (file, commandLine) => {
       spawned.push(commandLine);
       return { ...fakeTerm(), onExit(handler) { exitHandler = handler; } };
@@ -301,6 +303,29 @@ test('a failed resume of an agent that names its own session starts it without a
   assert.deepEqual(seen.at(-1), { panelId: 'p35', sessionId: null, reason: 'restarted' });
   assert.doesNotMatch(spawned.at(-1), /invented/);
   manager.stop('p35');
+});
+
+test('an agent that names its own session is not asked to resume one it no longer has', () => {
+  const spawned = [];
+  const manager = makeManager({
+    exists: () => true,
+    kill: () => {},
+    hasSession: ({ id }) => id !== 'gone',
+    spawn: (file, commandLine) => {
+      spawned.push(commandLine);
+      return fakeTerm();
+    },
+  });
+  const seen = [];
+  manager.on('session', (payload) => seen.push(payload));
+  manager.start({ panelId: 'p36', agentId: 'discovering', cwd: workDir, sessionId: 'gone', mode: 'resume' });
+  assert.deepEqual(seen, [{ panelId: 'p36', sessionId: null, reason: 'restarted' }]);
+  // Its start arguments, not the resume ones that name the session.
+  assert.match(spawned[0], /echo-agent\.js"? x"?$/);
+  manager.start({ panelId: 'p37', agentId: 'discovering', cwd: workDir, sessionId: 'kept', mode: 'resume' });
+  assert.match(spawned[1], /echo-agent\.js"? kept"?$/);
+  manager.stop('p36');
+  manager.stop('p37');
 });
 
 test('a resume that failed says so, so the panel knows its conversation is gone', () => {

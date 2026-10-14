@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { findSessionId, codexHome } from '../server/codex-sessions.js';
+import { findSessionId, codexHome, sessionExists } from '../server/codex-sessions.js';
 
 const GAME = 'C:\\Games\\my game';
 const OTHER = 'C:\\Games\\other';
@@ -96,4 +96,16 @@ test('Codex conversations are looked for where Codex keeps them', () => {
   const home = codexHome();
   assert.ok(home.endsWith('.codex') || home === process.env.CODEX_HOME, `unexpected home: ${home}`);
   assert.doesNotThrow(() => findSessionId({ cwd: GAME, startedAt: Date.now() + 1000 }));
+});
+
+test('a conversation Codex still has is known, by its file name or its first line', () => {
+  const home = tempCodexHome();
+  writeRollout(home, { id: 'aaa', cwd: GAME, at: 2000 });
+  const renamed = path.join(home, 'sessions', '2026', '09', '12', 'rollout-renamed.jsonl');
+  fs.writeFileSync(renamed, `${JSON.stringify({ type: 'session_meta', payload: { session_id: 'bbb', cwd: GAME } })}
+`);
+  assert.equal(sessionExists({ home, id: 'aaa' }), true);
+  assert.equal(sessionExists({ home, id: 'bbb' }), true);
+  assert.equal(sessionExists({ home, id: 'gone' }), false);
+  assert.equal(sessionExists({ home, id: null }), false);
 });

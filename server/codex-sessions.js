@@ -58,3 +58,15 @@ export function findSessionId({ home = codexHome(), cwd, startedAt, taken = new 
     .sort((a, b) => a.at - b.at);
   return candidates[0]?.id ?? null;
 }
+
+// Whether Codex still has this conversation. Asked before resuming one, so a
+// panel whose conversation is gone starts afresh instead of failing — which it
+// otherwise only notices after Codex has asked its questions, and an answer
+// to those looks like the panel being used.
+export function sessionExists({ home = codexHome(), id }) {
+  if (!id) return false;
+  const rollouts = everyRollout(path.join(home, 'sessions'));
+  // The id is part of the file name; the first line says so when it is not.
+  return rollouts.some((file) => path.basename(file).includes(id))
+    || rollouts.some((file) => metaOf(file)?.id === id);
+}

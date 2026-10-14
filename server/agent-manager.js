@@ -9,7 +9,7 @@ import { findAgent, buildLaunch } from './agents-config.js';
 import { createScrollback } from './scrollback.js';
 import { createTitleTracker, isUsefulTitle } from './terminal-title.js';
 import { looksTyped } from '../shared/input.js';
-import { findSessionId as findCodexSession } from './codex-sessions.js';
+import { findSessionId as findCodexSession, sessionExists as codexSessionExists } from './codex-sessions.js';
 
 const DEFAULT_SIZE = { cols: 120, rows: 30 };
 
@@ -35,6 +35,7 @@ export function createAgentManager({
   // how often. Codex writes the answer out only once the conversation really
   // starts, which can be a while if it is waiting to be trusted.
   findSessionId = findCodexSession,
+  hasSession = codexSessionExists,
   discoverEveryMs = 1000,
   discoverForMs = 120_000,
 }) {
@@ -87,10 +88,26 @@ export function createAgentManager({
     entry.timer = null;
   }
 
+  function sessionKnown(id) {
+    try {
+      return hasSession({ id });
+    } catch {
+      // Unsure is not the same as gone: let the agent decide.
+      return true;
+    }
+  }
+
   function start(options) {
-    const { panelId, agentId, cwd, sessionId, mode } = options;
+    const { panelId, agentId, cwd } = options;
+    let { sessionId, mode } = options;
     stop(panelId);
     const agent = findAgent(agents, agentId);
+    if (mode === 'resume' && agent.sessionSource === 'codex' && !sessionKnown(sessionId)) {
+      // Nothing to resume: start a new one, and read its id back as usual.
+      emitter.emit('session', { panelId, sessionId: null, reason: 'restarted' });
+      mode = 'start';
+      sessionId = null;
+    }
     if (!folderExists(cwd)) {
       setStatus(panelId, 'folder-missing', `Folder not found: ${cwd}`);
       return;
