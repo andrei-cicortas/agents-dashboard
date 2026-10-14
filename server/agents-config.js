@@ -8,7 +8,8 @@ const REQUIRED_STRINGS = ['id', 'name', 'command', 'installHint'];
 const REQUIRED_ARRAYS = ['startArgs', 'resumeArgs'];
 
 export function loadAgents(filePath) {
-  const agents = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  // A file saved by some editors starts with a byte order mark.
+  const agents = JSON.parse(fs.readFileSync(filePath, 'utf8').replace(/^﻿/, ''));
   if (!Array.isArray(agents)) throw new Error('Agent definitions must be a JSON array');
   agents.forEach((agent, index) => {
     const valid = agent
@@ -17,6 +18,25 @@ export function loadAgents(filePath) {
     if (!valid) throw new Error(`Invalid agent definition at index ${index}`);
   });
   return agents;
+}
+
+// Agents the user adds themselves, kept beside their state.
+export const CUSTOM_AGENTS_FILE = 'custom-agents.json';
+
+// The built-in agents with the user's own added, or put in place of a built-in
+// one with the same id. A missing file adds nothing; a broken one is reported
+// and skipped, so a typo in it never stops the app from opening.
+export function withCustomAgents(builtIn, filePath, { log = console.error } = {}) {
+  if (!fs.existsSync(filePath)) return builtIn;
+  let custom;
+  try {
+    custom = loadAgents(filePath);
+  } catch (err) {
+    log(`Ignoring ${filePath}: ${err.message}`);
+    return builtIn;
+  }
+  const ids = new Set(custom.map((agent) => agent.id));
+  return [...builtIn.filter((agent) => !ids.has(agent.id)), ...custom];
 }
 
 export function findAgent(agents, id) {

@@ -138,7 +138,11 @@ instead of staying dead.
 
 ## Adding another agent type
 
-Add an entry to `config/agents.json` and build the app again:
+The built-in agents are in `config/agents.json`. Users add their own in
+`%APPDATA%\agents-dashboard\custom-agents.json` (see the
+[user guide](user-guide.md#adding-other-agents)), which an update of the app
+never touches; an entry there with the id of a built-in agent replaces it.
+Each entry has:
 
 - `command`: the program to run (must be on PATH)
 - `startArgs` / `resumeArgs`: arguments for a new session / for continuing one
@@ -146,3 +150,6 @@ Add an entry to `config/agents.json` and build the app again:
 - `installHint`: shown when the command is not installed
 - `sessionSource`: `"codex"` for an agent that names its own session, so its id
   is read back after it starts rather than chosen in advance
+
+A file that cannot be read is reported in `server-error.log` and skipped, so a
+typo in it never stops the app from opening.

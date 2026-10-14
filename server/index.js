@@ -7,7 +7,9 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { createAgentManager } from './agent-manager.js';
-import { loadAgents, claudeHooksSettings, codexNotifyValue } from './agents-config.js';
+import {
+  CUSTOM_AGENTS_FILE, loadAgents, withCustomAgents, claudeHooksSettings, codexNotifyValue,
+} from './agents-config.js';
 import { createAgentRunner } from './agent-runner.js';
 import { createDashboard } from './dashboard.js';
 import { pickFolder as nativePickFolder } from './folder-picker.js';
@@ -75,9 +77,11 @@ export async function startServer({
   onStop = () => {},
 } = {}) {
   const token = createToken();
-  const agents = loadAgents(agentsFile);
   const dataDir = path.dirname(stateFile);
   fs.mkdirSync(dataDir, { recursive: true });
+  // The built-in agents, plus any the user added beside their state, where an
+  // update of the app cannot overwrite them.
+  const agents = withCustomAgents(loadAgents(agentsFile), path.join(dataDir, CUSTOM_AGENTS_FILE));
 
   const server = http.createServer();
   await new Promise((resolve, reject) => {

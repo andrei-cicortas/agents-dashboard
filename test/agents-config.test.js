@@ -13,6 +13,7 @@ import {
   toForwardSlashes,
   claudeHooksSettings,
   codexNotifyValue,
+  withCustomAgents,
 } from '../server/agents-config.js';
 
 const configPath = fileURLToPath(new URL('../config/agents.json', import.meta.url));
@@ -113,6 +114,35 @@ test('claudeHooksSettings runs the desktop app itself when given its --hook comm
     settings.hooks.Stop[0].hooks[0].command,
     '"C:/Programs/Agents Dashboard/Agents Dashboard.exe" "--hook" claude finished',
   );
+});
+
+test('withCustomAgents adds the user\'s agents and lets them replace a built-in one', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'custom-agents-'));
+  const file = path.join(dir, 'custom-agents.json');
+  const builtIn = loadAgents(configPath);
+  assert.equal(withCustomAgents(builtIn, file), builtIn);
+
+  // Saved by Notepad, byte order mark and all.
+  fs.writeFileSync(file, '﻿' + JSON.stringify([
+    { id: 'gemini', name: 'Gemini CLI', command: 'gemini', startArgs: [], resumeArgs: [], installHint: 'Install Gemini CLI' },
+    { id: 'codex', name: 'My Codex', command: 'codex', startArgs: [], resumeArgs: [], installHint: 'h' },
+  ]));
+  const agents = withCustomAgents(builtIn, file);
+  assert.deepEqual(agents.map((agent) => agent.name), ['Claude Code', 'Gemini CLI', 'My Codex']);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('withCustomAgents skips a broken file rather than stopping the app', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'custom-agents-'));
+  const file = path.join(dir, 'custom-agents.json');
+  const builtIn = loadAgents(configPath);
+  const logged = [];
+  fs.writeFileSync(file, '[{ "id": "half" ');
+  assert.equal(withCustomAgents(builtIn, file, { log: (text) => logged.push(text) }), builtIn);
+  fs.writeFileSync(file, JSON.stringify([{ id: 'no-command', name: 'x' }]));
+  assert.equal(withCustomAgents(builtIn, file, { log: (text) => logged.push(text) }), builtIn);
+  assert.equal(logged.length, 2);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('codexNotifyValue rejects paths with single quotes', () => {

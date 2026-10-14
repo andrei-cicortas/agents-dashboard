@@ -10,18 +10,24 @@ on:
   push:
     tags: ['v*']
 
-permissions:
-  contents: write
+# Nothing by default; the one job that publishes asks for what it needs.
+permissions: {}
 
 jobs:
   release:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # Pinned to the exact commit of a release, as in test.yml.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
+          # No cache: the installer people download is built from a clean
+          # install, never from files an earlier run left behind.
       - run: npm ci
       - run: npm test
       - run: npm run release

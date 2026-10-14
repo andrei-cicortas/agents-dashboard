@@ -5,8 +5,9 @@
 <h1 align="center">Agents Dashboard</h1>
 
 <p align="center">
-  Run Claude Code and Codex side by side — every agent in its own real terminal,<br>
-  one window that tells you which of them needs you.
+  Run as many AI coding agents as you like, all at once — four Claude Codes on four<br>
+  projects, or six on one — each in its own real terminal, in one window<br>
+  that tells you which of them needs you.
 </p>
 
 <p align="center">
@@ -25,10 +26,12 @@
 ## Why I built it
 
 AI coding agents are good enough now that the slow part is no longer the
-code — it is me. I would start Claude Code on one task, Codex on another, a
-second Claude in another project, each in its own terminal window, and then
-lose track: which one finished ten minutes ago, which one is stuck waiting for
-me to approve something, which window was which.
+code — it is me. One agent at a time leaves most of the day waiting, so I
+would run several: three or four Claude Codes on different projects, another
+on the same project doing something else, Codex on a task of its own. Each in
+its own terminal window — and then I would lose track: which one finished ten
+minutes ago, which one was stuck waiting for me to approve something, which
+window was which.
 
 So I built the place I wanted to work in: every agent in one window, tiled
 like an editor, each in a real terminal so nothing about the agents changes —
@@ -39,9 +42,15 @@ even when the window is closed.
 
 <img src="docs/images/code.png" alt="Three panels: Claude Code, Codex and the game they are working on">
 
+- **As many agents as you want, at the same time.** Four agents on four
+  projects, six on one project, or any mix. Each works on its own task, in
+  parallel, and keeps going while you look at another.
 - **Real terminals, side by side.** Each agent runs exactly as it would in
   Windows Terminal. Split, resize and maximise panels; each project folder
   keeps its own arrangement.
+- **Claude Code and Codex built in, other agents welcome.** Any coding agent
+  that runs in a terminal — Gemini CLI or Aider, for example — can be added
+  with a few lines in a settings file ([how](docs/user-guide.md#adding-other-agents)).
 - **Knows when an agent needs you.** A panel turns orange when its agent asks
   for input and the bell rings when one finishes — with a Windows notification
   and a red count on the taskbar when you are looking elsewhere. Clicking the
@@ -76,8 +85,8 @@ even when the window is closed.
   </tr>
 </table>
 
-It uses the Claude Code and Codex you already have, signed in the way you
-already are — no API keys and no second subscription.
+It uses the agents you already have, signed in the way you already are — no
+API keys and no second subscription.
 
 ## Install
 

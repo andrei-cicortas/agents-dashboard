@@ -201,6 +201,46 @@ Closing the window does **not** stop the agents; click the icon by the clock to
 see them again. **Settings** (the gear in the account card) stops all agents
 and quits the app.
 
+## Adding other agents
+
+Claude Code and Codex are built in, but any coding agent that runs in a
+terminal can sit beside them. Install the agent so its command works in a
+normal terminal, then create the file
+`%APPDATA%\agents-dashboard\custom-agents.json` — paste that path into File
+Explorer's address bar to open the folder — with an entry for it:
+
+```json
+[
+  {
+    "id": "gemini",
+    "name": "Gemini CLI",
+    "command": "gemini",
+    "startArgs": [],
+    "resumeArgs": [],
+    "installHint": "Gemini CLI is not installed. Run: npm install -g @google/gemini-cli"
+  }
+]
+```
+
+Quit the app from the icon by the clock and open it again: **New Gemini CLI**
+is now on every folder's **+** menu. Add as many entries as you like. Updates
+of the app never touch this file.
+
+- `command` is the program to run, and `startArgs` what it is given. If the
+  agent can continue a conversation, `resumeArgs` are the arguments for that
+  — otherwise leave them the same as `startArgs`.
+- An entry with the id `claude` or `codex` replaces the built-in one — for
+  example to always start Claude Code with another model. Copy the whole
+  entry from [config/agents.json](../config/agents.json) and change it, say
+  by adding `"--model", "opus"` to both its argument lists.
+
+The dot and the bell only know an agent has finished when the agent says so.
+Claude Code and Codex do; an agent added here runs just the same, but its
+panel stays green until it exits.
+
+If the file has a mistake in it, the app opens anyway without it and says why
+in `server-error.log`.
+
 ## Where things are stored
 
 - State (workspaces, panels, notifications, panel arrangements, agents and
