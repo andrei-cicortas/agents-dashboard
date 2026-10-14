@@ -282,6 +282,27 @@ test('two Codex panels in one folder do not claim the same conversation', async 
   manager.stop('p33');
 });
 
+test('a failed resume of an agent that names its own session starts it without an invented one', () => {
+  let exitHandler;
+  const spawned = [];
+  const manager = makeManager({
+    exists: () => true,
+    kill: () => {},
+    newSessionId: () => 'invented',
+    spawn: (file, commandLine) => {
+      spawned.push(commandLine);
+      return { ...fakeTerm(), onExit(handler) { exitHandler = handler; } };
+    },
+  });
+  const seen = [];
+  manager.on('session', (payload) => seen.push(payload));
+  manager.start({ panelId: 'p35', agentId: 'discovering', cwd: workDir, sessionId: 'gone', mode: 'resume' });
+  exitHandler({ exitCode: 1 });
+  assert.deepEqual(seen.at(-1), { panelId: 'p35', sessionId: null, reason: 'restarted' });
+  assert.doesNotMatch(spawned.at(-1), /invented/);
+  manager.stop('p35');
+});
+
 test('a resume that failed says so, so the panel knows its conversation is gone', () => {
   let exitHandler;
   const manager = makeManager({

@@ -331,6 +331,16 @@ test('panel:restart starts the agent fresh with a new session', async () => {
   assert.equal(store.saved.panels[0].title, null);
 });
 
+test('panel:restart leaves an agent that names its own session to name the new one', async () => {
+  // Restarting Codex with an id we made up would skip reading its real one
+  // back, and the next launch would ask it to resume a conversation it never had.
+  const { dashboard, store, manager, send } = setup({ initial: { ...withPanel(), panels: [{ ...savedPanel, agentId: 'codex', sessionId: 'codex-old' }] } });
+  dashboard.start();
+  await send({ type: 'panel:restart', panelId: 'p1' });
+  assert.equal(manager.calls.at(-1)[1].sessionId, null);
+  assert.equal(store.saved.panels[0].sessionId, null);
+});
+
 test('server:stop asks the transport to stop, and shutdown stops agents and saves', async () => {
   const { dashboard, store, manager, sent, send } = setup({ initial: withPanel() });
   dashboard.start();

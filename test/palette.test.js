@@ -37,6 +37,7 @@ test('everything in the app is something the box can find', () => {
 test('each entry says what it is, so two things of the same name are told apart', () => {
   const items = paletteItems(state, commands);
   assert.equal(items.find((item) => item.label === 'Add double jump').hint, 'Terminal · Spider Tag');
+  assert.equal(items.find((item) => item.label === 'localhost:3000').hint, 'Web page · Spider Tag');
   assert.equal(items.find((item) => item.label === 'Release notes writer').hint, 'Agent · Spider Tag');
   assert.equal(items.find((item) => item.label === 'What is a pseudo-terminal?').hint, 'Chat');
 });

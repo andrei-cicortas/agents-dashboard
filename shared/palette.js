@@ -30,7 +30,7 @@ export function paletteItems(state = {}, commands = []) {
       kind: 'panel',
       targetId: panel.id,
       label: panelLabel(panel),
-      hint: `Terminal · ${folderName(panel.cwd)}`,
+      hint: `${panel.kind === 'browser' ? 'Web page' : 'Terminal'} · ${folderName(panel.cwd)}`,
     })),
     ...profiles.map((profile) => ({
       kind: 'agent',

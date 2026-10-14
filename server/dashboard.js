@@ -609,7 +609,9 @@ export function createDashboard({
     'panel:restart'({ panelId }) {
       const panel = findPanel(panelId);
       if (!panel || isBrowser(panel)) return;
-      Object.assign(panel, { sessionId: newSessionId(), title: null, status: 'starting', message: null, attention: false });
+      // A new conversation: named here, or by the agent itself when it names
+      // its own (see sessionFor).
+      Object.assign(panel, { sessionId: sessionFor(panel.agentId), title: null, status: 'starting', message: null, attention: false });
       commit();
       launch(panel, 'start');
     },

@@ -137,7 +137,9 @@ export function createAgentManager({
       // that from quitting on purpose is not how long it took but whether you
       // ever typed into it, so that is what decides whether to start it fresh.
       if (mode === 'resume' && !entry.sawInput) {
-        const freshId = newSessionId();
+        // An agent that names its own session is left to name the new one too,
+        // and it is read back as on any first start.
+        const freshId = agent.sessionSource ? null : newSessionId();
         emitter.emit('session', { panelId, sessionId: freshId, reason: 'restarted' });
         // This runs inside a pseudo-terminal callback: a throw here would end
         // the server, so report it on the panel instead.
