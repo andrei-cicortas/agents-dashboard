@@ -30,6 +30,15 @@ jobs:
           # install, never from files an earlier run left behind.
       - run: npm ci
       - run: npm test
+      # The draft exists before the upload starts: left to electron-builder,
+      # its parallel uploads each created one, and the files ended up split
+      # between two drafts.
+      - name: Create the draft release
+        shell: bash
+        run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "${GITHUB_REF_NAME#v}" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
       - run: npm run release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
