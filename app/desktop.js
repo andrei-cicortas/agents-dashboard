@@ -13,7 +13,7 @@ import {
   MIN_HEIGHT, MIN_WIDTH, chromeFrom, isNotificationId, nextZoom, placeWindow, readWindowState, writeWindowState,
 } from './window-state.js';
 
-const APP_ID = 'com.andreinog17.agentsdashboard';
+const APP_ID = 'com.andreicicortas.agentsdashboard';
 const APP_NAME = 'Agents Dashboard';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const ICON = path.join(ROOT, 'assets', 'icon.ico');

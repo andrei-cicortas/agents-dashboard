@@ -7,7 +7,7 @@ const panel = { title: null, agentName: 'Claude Code', cwd: 'C:\\Users\\user\\De
 test('folderName returns the last part of a Windows or POSIX path', () => {
   assert.equal(folderName('C:\\Users\\user\\Desktop\\my game'), 'my game');
   assert.equal(folderName('C:\\Projects\\site\\'), 'site');
-  assert.equal(folderName('/home/andrei/bot'), 'bot');
+  assert.equal(folderName('/home/user/bot'), 'bot');
   assert.equal(folderName('C:\\'), 'C:');
 });
 

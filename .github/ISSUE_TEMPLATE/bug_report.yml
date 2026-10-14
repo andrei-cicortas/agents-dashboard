@@ -1,0 +1,31 @@
+name: Bug report
+description: Something in the app does not work the way it should
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Shown in Settings → Apps → Installed apps, next to Agents Dashboard.
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Which agent
+      options:
+        - Claude Code
+        - Codex
+        - A named agent (Agent tab)
+        - Chat
+        - Not about an agent
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: Anything relevant from %APPDATA%\agents-dashboard\server-error.log. Check it for anything private before pasting.
+      render: text

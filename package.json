@@ -5,11 +5,11 @@
   "private": true,
   "type": "module",
   "description": "Run several AI coding agents side by side, each in its own terminal and project folder",
-  "author": "Andrei",
-  "homepage": "https://github.com/AndreiNOG17/agents-dashboard",
+  "author": "Andrei Cicortas",
+  "homepage": "https://github.com/andrei-cicortas/agents-dashboard",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AndreiNOG17/agents-dashboard.git"
+    "url": "https://github.com/andrei-cicortas/agents-dashboard.git"
   },
   "main": "app/main.js",
   "scripts": {
@@ -36,9 +36,9 @@
     "electron-builder": "26.15.3"
   },
   "build": {
-    "appId": "com.andreinog17.agentsdashboard",
+    "appId": "com.andreicicortas.agentsdashboard",
     "productName": "Agents Dashboard",
-    "copyright": "Copyright © 2026 Andrei",
+    "copyright": "Copyright © 2026 Andrei Cicortas",
     "asar": false,
     "directories": {
       "output": "dist",
@@ -79,7 +79,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "AndreiNOG17",
+        "owner": "andrei-cicortas",
         "repo": "agents-dashboard",
         "releaseType": "draft"
       }
@@ -87,5 +87,20 @@
     "electronLanguages": [
       "en-US"
     ]
-  }
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/andrei-cicortas/agents-dashboard/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "codex",
+    "ai-agents",
+    "electron",
+    "terminal",
+    "xterm",
+    "node-pty",
+    "windows",
+    "developer-tools"
+  ]
 }
